@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Quiz Auction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   Palette: arena-night background, brass "sold" gold, live-bid teal,
+   urgency crimson. Type: Oswald (auction-board display) + Inter (body)
+   + JetBrains Mono (money figures — tabular, ticker feel).
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:            #0a0d13;
+  --bg-raised:     #10141d;
+  --bg-card:       #141924;
+  --bg-card-2:     #1a2030;
+  --line:          #262d3d;
+  --line-soft:     #1c2230;
+  --text:          #eef1f7;
+  --text-dim:      #8b93a7;
+  --text-faint:    #565f75;
+  --gold:          #d4a94f;
+  --gold-bright:   #f0c674;
+  --teal:          #2dd4bf;
+  --teal-dim:      #1a4d47;
+  --crimson:       #e5484d;
+  --crimson-dim:   #4a1e20;
+  --green:         #3ecf8e;
+  --shadow-lg:     0 24px 60px -20px rgba(0,0,0,0.6);
+  --radius:        14px;
+  --radius-sm:     9px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(212,169,79,0.08), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 100%, rgba(45,212,191,0.05), transparent),
+    var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
+.display{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.02em;}
+h1,h2,h3{margin:0;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;border:none;}
+button:disabled{cursor:not-allowed;opacity:0.45;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--gold);color:#0a0d13;}
+@media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms !important;transition-duration:0.01ms !important;}}
+
+/* focus visibility */
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
+  outline:2px solid var(--gold-bright);outline-offset:2px;
+}
+
+/* ── Shell ───────────────────────────────────────────────────────── */
+.app{max-width:1100px;margin:0 auto;padding:0 16px 60px;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 4px 16px;position:sticky;top:0;z-index:40;
+  background:linear-gradient(var(--bg) 78%, transparent);
+  backdrop-filter:blur(6px);
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(150deg,var(--gold-bright),var(--gold) 60%,#9c7523);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald';font-weight:700;font-size:17px;color:#1a1204;
+  box-shadow:0 4px 14px -4px rgba(212,169,79,0.5);
+}
+.brand-name{font-family:'Oswald';font-weight:600;font-size:19px;letter-spacing:0.01em;}
+.brand-name b{color:var(--gold-bright);font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.pill{
+  font-size:12px;font-weight:600;padding:6px 12px;border-radius:100px;
+  background:var(--bg-card);border:1px solid var(--line);color:var(--text-dim);
+  display:flex;align-items:center;gap:6px;
+}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.btn{
+  font-size:13px;font-weight:600;padding:9px 16px;border-radius:9px;
+  transition:transform .12s ease, box-shadow .12s ease, background .15s ease;
+}
+.btn:active{transform:scale(0.97);}
+.btn-ghost{background:var(--bg-card);border:1px solid var(--line);color:var(--text);}
+.btn-ghost:hover{border-color:var(--text-faint);}
+.btn-gold{
+  background:linear-gradient(155deg,var(--gold-bright),var(--gold));
+  color:#1a1204;box-shadow:0 6px 18px -6px rgba(212,169,79,0.55);
+}
+.btn-gold:hover{box-shadow:0 8px 22px -6px rgba(212,169,79,0.7);}
+.btn-teal{background:linear-gradient(155deg,#4ee9d4,var(--teal));color:#04211d;box-shadow:0 6px 18px -6px rgba(45,212,191,0.5);}
+.btn-crimson{background:linear-gradient(155deg,#f16468,var(--crimson));color:#2a0708;box-shadow:0 6px 18px -6px rgba(229,72,77,0.5);}
+.btn-block{width:100%;}
+.btn-lg{padding:15px 20px;font-size:15px;border-radius:12px;}
+.btn-sm{padding:6px 11px;font-size:12px;border-radius:7px;}
+
+/* ── Cards / surfaces ────────────────────────────────────────────── */
+.card{
+  background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;
+}
+.card-soft{background:var(--bg-raised);border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;}
+.field input,.field select{
+  width:100%;background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
+  padding:11px 13px;border-radius:8px;font-size:14px;
+}
+.field input:focus,.field select:focus{border-color:var(--gold);}
+.field-row{display:flex;gap:10px;}
+.field-row .field{flex:1;}
+.hint{font-size:11.5px;color:var(--text-faint);margin-top:5px;}
+
+/* ── Landing / auth ──────────────────────────────────────────────── */
+.landing{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:40px 20px;text-align:center;position:relative;
+}
+.landing::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 600px 320px at 50% 15%, rgba(212,169,79,0.14), transparent 70%),
+    repeating-linear-gradient(180deg, transparent 0 39px, rgba(255,255,255,0.014) 39px 40px);
+  pointer-events:none;
+}
+.landing-mark{
+  width:74px;height:74px;border-radius:20px;margin-bottom:22px;
+  background:linear-gradient(150deg,var(--gold-bright),var(--gold) 55%,#9c7523);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald';font-weight:700;font-size:34px;color:#1a1204;
+  box-shadow:0 16px 40px -12px rgba(212,169,79,0.55);
+  animation:markIn .7s cubic-bezier(.2,.9,.25,1) both;
+}
+@keyframes markIn{from{opacity:0;transform:translateY(-14px) scale(0.9);}to{opacity:1;transform:none;}}
+.landing h1{
+  font-family:'Oswald';font-weight:700;font-size:clamp(32px,6vw,52px);
+  letter-spacing:0.005em;line-height:1.05;margin-bottom:12px;
+  animation:upIn .7s .1s cubic-bezier(.2,.9,.25,1) both;
+}
+.landing h1 em{font-style:normal;color:var(--gold-bright);}
+.landing p.sub{color:var(--text-dim);font-size:15.5px;max-width:420px;margin:0 auto 32px;line-height:1.55;animation:upIn .7s .18s cubic-bezier(.2,.9,.25,1) both;}
+@keyframes upIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.auth-tabs{display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:20px;width:100%;max-width:360px;animation:upIn .7s .24s cubic-bezier(.2,.9,.25,1) both;}
+.auth-tab{flex:1;padding:9px;border-radius:8px;font-size:13px;font-weight:600;background:transparent;color:var(--text-dim);}
+.auth-tab.active{background:var(--bg-card-2);color:var(--text);}
+.auth-box{width:100%;max-width:360px;text-align:left;animation:upIn .7s .3s cubic-bezier(.2,.9,.25,1) both;}
+.err-box{
+  background:rgba(229,72,77,0.1);border:1px solid rgba(229,72,77,0.3);color:#f39ea1;
+  font-size:12.5px;padding:9px 12px;border-radius:8px;margin-bottom:12px;
+}
+
+/* ── Dashboard / tournament list ─────────────────────────────────── */
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 12px;}
+.section-title h2{font-family:'Oswald';font-weight:600;font-size:18px;letter-spacing:0.01em;}
+.t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.t-card{
+  background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;cursor:pointer;transition:border-color .15s,transform .15s;position:relative;overflow:hidden;
+}
+.t-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.t-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--gold),transparent 70%);
+}
+.t-card h3{font-family:'Oswald';font-weight:600;font-size:17px;margin-bottom:6px;}
+.t-card .meta{font-size:12px;color:var(--text-faint);}
+.status-badge{
+  display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+  padding:3px 9px;border-radius:100px;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;
+}
+.status-live{background:var(--crimson-dim);color:#f9a5a8;}
+.status-live .dot{width:5px;height:5px;border-radius:50%;background:var(--crimson);animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.status-setup{background:var(--bg-card-2);color:var(--text-dim);}
+.status-done{background:rgba(62,207,142,0.12);color:#7fe0b3;}
+.empty{text-align:center;padding:50px 20px;color:var(--text-faint);}
+.empty .ic{font-size:36px;margin-bottom:10px;opacity:0.6;}
+
+/* ── Tournament setup (host) ─────────────────────────────────────── */
+.tabs{display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:18px;overflow-x:auto;}
+.tab-btn{padding:9px 15px;border-radius:8px;font-size:13px;font-weight:600;background:transparent;color:var(--text-dim);white-space:nowrap;}
+.tab-btn.active{background:var(--bg-card-2);color:var(--gold-bright);}
+.list-row{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-raised);
+  border:1px solid var(--line-soft);border-radius:9px;margin-bottom:8px;
+}
+.avatar{
+  width:36px;height:36px;border-radius:8px;flex-shrink:0;
+  background:var(--bg-card-2);display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald';font-weight:600;font-size:14px;color:var(--text-dim);
+}
+.list-row .info{flex:1;min-width:0;}
+.list-row .info .name{font-weight:600;font-size:14px;}
+.list-row .info .sub{font-size:11.5px;color:var(--text-faint);margin-top:1px;}
+.icon-btn{
+  width:30px;height:30px;border-radius:7px;background:var(--bg-card-2);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-dim);
+  flex-shrink:0;
+}
+.icon-btn:hover{color:var(--text);}
+.icon-btn.danger:hover{color:var(--crimson);background:var(--crimson-dim);}
+.role-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.03em;}
+.role-BAT{background:#1e3a5f;color:#7ec4fa;}
+.role-BOWL{background:#3a1e1e;color:#fa9c7e;}
+.role-AR{background:#2e3a1e;color:#c3e57e;}
+.role-WK{background:#3a2e1e;color:#e5c37e;}
+
+/* ── Auction room ────────────────────────────────────────────────── */
+.arena{
+  background:
+    radial-gradient(ellipse 500px 260px at 50% 0%, rgba(212,169,79,0.12), transparent 70%),
+    var(--bg-card);
+  border:1px solid var(--line);border-radius:18px;padding:26px 20px;text-align:center;
+  position:relative;overflow:hidden;margin-bottom:18px;
+}
+.arena-tag{font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--text-faint);text-transform:uppercase;margin-bottom:10px;}
+.player-name{font-family:'Oswald';font-weight:700;font-size:clamp(26px,6vw,38px);line-height:1.1;margin-bottom:6px;}
+.player-role-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:22px;}
+.price-block{margin:8px 0 22px;}
+.price-label{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;}
+.price-value{
+  font-family:'JetBrains Mono';font-weight:700;font-size:clamp(38px,9vw,58px);color:var(--gold-bright);
+  line-height:1;transition:transform .18s ease;
+}
+.price-value.flash{animation:flash .45s ease;}
+@keyframes flash{0%{transform:scale(1.12);color:#fff;}100%{transform:scale(1);color:var(--gold-bright);}}
+.price-leader{font-size:13px;color:var(--teal);font-weight:600;margin-top:6px;}
+.timer-ring-wrap{display:flex;justify-content:center;margin-bottom:20px;}
+.timer-ring{position:relative;width:88px;height:88px;}
+.timer-ring svg{transform:rotate(-90deg);width:100%;height:100%;}
+.timer-ring circle{fill:none;stroke-width:6;}
+.timer-ring .bg{stroke:var(--line);}
+.timer-ring .fg{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset 1s linear, stroke .3s;}
+.timer-ring .fg.urgent{stroke:var(--crimson);}
+.timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono';font-weight:700;font-size:24px;}
+.bid-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+.no-active{padding:36px 20px;color:var(--text-faint);}
+.no-active .ic{font-size:34px;margin-bottom:10px;}
+
+/* scoreboard budget bars */
+.board{margin-top:18px;}
+.board-title{font-family:'Oswald';font-size:13px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
+.team-strip{
+  display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg-raised);
+  border:1px solid var(--line-soft);border-radius:9px;margin-bottom:8px;position:relative;overflow:hidden;
+}
+.team-strip.leading{border-color:var(--teal);}
+.team-strip .tname{font-weight:700;font-size:13.5px;min-width:110px;}
+.budget-bar{flex:1;height:7px;background:var(--bg-card-2);border-radius:100px;overflow:hidden;}
+.budget-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:100px;transition:width .4s ease;}
+.team-strip .amt{font-family:'JetBrains Mono';font-size:12.5px;color:var(--text-dim);min-width:96px;text-align:right;}
+.team-strip .cnt{font-size:10.5px;color:var(--text-faint);min-width:38px;text-align:right;}
+
+/* squad list (captain view) */
+.squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px;}
+.squad-slot{
+  border:1.5px dashed var(--line);border-radius:9px;padding:12px 10px;text-align:center;
+  min-height:70px;display:flex;flex-direction:column;justify-content:center;
+}
+.squad-slot.filled{border-style:solid;border-color:var(--line-soft);background:var(--bg-raised);}
+.squad-slot .pname{font-weight:600;font-size:13px;}
+.squad-slot .pprice{font-family:'JetBrains Mono';font-size:11px;color:var(--gold);margin-top:2px;}
+.squad-slot .empty-lbl{font-size:11px;color:var(--text-faint);}
+
+/* toast */
+.toast-wrap{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.toast{
+  background:var(--bg-card-2);border:1px solid var(--line);color:var(--text);
+  padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);
+  animation:toastIn .25s ease both;max-width:88vw;
+}
+.toast.error{border-color:rgba(229,72,77,0.4);color:#f9a5a8;}
+.toast.success{border-color:rgba(62,207,142,0.35);color:#8ceab4;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(5,7,11,0.72);backdrop-filter:blur(3px);z-index:150;display:flex;align-items:center;justify-content:center;padding:16px;}
+.modal{background:var(--bg-card);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal h3{font-family:'Oswald';font-weight:600;font-size:18px;margin-bottom:16px;}
+.modal-close-row{display:flex;justify-content:flex-end;margin-top:18px;gap:8px;}
+
+/* history log */
+.log-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.log-row:last-child{border:none;}
+.log-row .lp{font-weight:600;}
+.log-row .lt{color:var(--text-dim);}
+.log-row .la{font-family:'JetBrains Mono';color:var(--gold);font-weight:700;}
+.log-row.unsold .la{color:var(--text-faint);}
+
+.footer-note{text-align:center;color:var(--text-faint);font-size:11.5px;margin-top:40px;padding-top:20px;border-top:1px solid var(--line-soft);}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--text-dim);font-size:13px;font-weight:600;margin-bottom:14px;}
+.back-link:hover{color:var(--text);}
+
+.loading-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--text-faint);}
+.spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--gold);animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:520px){
+  .field-row{flex-direction:column;gap:0;}
+  .bid-row{flex-direction:column;width:100%;}
+  .bid-row .btn{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ═══════════════════════════════ FIREBASE ═══════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc,
+  collection, onSnapshot, query, orderBy, where, serverTimestamp, deleteField
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut, updateProfile
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDMH5eTGRtQrc3HlJ8wx5wqxThAfB5kNGU",
+  authDomain: "quiz-auction.firebaseapp.com",
+  projectId: "quiz-auction",
+  storageBucket: "quiz-auction.firebasestorage.app",
+  messagingSenderId: "811162616398",
+  appId: "1:811162616398:web:1dc78962c15e282288391f",
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+
+window._db = db;
+window._auth = auth;
+window._fs = { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, onSnapshot, query, orderBy, where, serverTimestamp, deleteField };
+window._fa = { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile };
+window._fbReady = true;
+window.dispatchEvent(new Event('fbready'));
+</script>
+
+<!-- ═══════════════════════════════ APP ═══════════════════════════════ -->
+<script>
+(function(){
+"use strict";
+
+/* ── tiny state ──────────────────────────────────────────────────── */
+let currentUser = null;      // { uid, email, name }
+let authReady = false;       // true once the initial onAuthStateChanged has fired
+let route = { page: 'landing' }; // { page, tournamentId }
+let authTab = 'login';       // 'login' | 'register'
+let authErr = '';
+let busy = false;
+
+let myTournaments = {};      // tournaments I OWN — id -> doc
+let joinableTournaments = {};// all OTHER tournaments open to join — id -> doc
+let myRequests = {};         // tournamentId -> my request doc (status pending/approved/rejected)
+let usersCache = {};         // uid -> { name, email } — small lookup cache, filled as we encounter uids
+
+let tCache = null;           // currently open tournament doc
+let teamsCache = {};         // teamId -> team doc
+let playersCache = {};       // playerId -> player doc
+let auctionCache = null;     // auctionState doc
+let historyCache = [];       // sold/unsold log, newest first
+let requestsCache = {};      // requestId -> join-request doc (owner sees all; participant sees own)
+let unsubs = [];             // active onSnapshot unsubscribers for the open tournament
+let listUnsubs = [];         // active onSnapshot unsubscribers for the dashboard lists
+
+let flashPrice = false;
+
+function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function fmtMoney(n){
+  n = Number(n)||0;
+  if (n >= 10000000) return (n/10000000).toFixed(n%10000000===0?0:2).replace(/\.00$/,'') + ' Cr';
+  if (n >= 100000) return (n/100000).toFixed(n%100000===0?0:2).replace(/\.00$/,'') + ' L';
+  return n.toLocaleString('en-IN');
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDateTime(ms){
+  if (!ms) return 'Not set';
+  const d = new Date(ms);
+  return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function showToast(msg, type){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, 3200);
+}
+
+function fb(){ return { db: window._db, ...window._fs }; }
+function fa(){ return { auth: window._auth, ...window._fa }; }
+function waitForFb(){
+  return new Promise(res=>{
+    if (window._fbReady) return res();
+    window.addEventListener('fbready', ()=>res(), { once:true });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATA MODEL
+   users/{uid}                         — { name, email, createdAt }
+   tournaments/{tid}                   — { name, ownerUid, ownerName, status,
+                                            totalBudget, maxPlayersPerTeam,
+                                            basePriceDefault, minBidIncrement,
+                                            bidTimerSeconds, rules,
+                                            auctionAt, createdAt }
+   tournaments/{tid}/requests/{rid}    — { uid, name, status:pending|approved|rejected, createdAt }
+   tournaments/{tid}/teams/{teamId}    — { name, participantUid, participantName,
+                                            budgetTotal, budgetSpent, createdAt }
+   tournaments/{tid}/players/{pid}     — { name, role, basePrice, status, soldTo, soldPrice }
+   tournaments/{tid}/state/auction     — { currentPlayerId, currentBid, currentBidTeamId,
+                                            timerEndsAt, running }
+   tournaments/{tid}/history/{hid}     — sold/unsold log
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Auth ────────────────────────────────────────────────────────── */
+async function registerUser(name, email, password){
+  const { auth, createUserWithEmailAndPassword, updateProfile } = fa();
+  const { db, doc, setDoc } = fb();
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  await updateProfile(cred.user, { displayName: name });
+  await setDoc(doc(db, 'users', cred.user.uid), { name, email, createdAt: Date.now() });
+  return cred.user;
+}
+async function loginUser(email, password){
+  const { auth, signInWithEmailAndPassword } = fa();
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
+}
+async function logout(){
+  const { auth, signOut } = fa();
+  detachTournamentListeners();
+  detachListListeners();
+  try{ await signOut(auth); }catch(e){}
+  currentUser = null;
+  route = { page:'landing' };
+  render();
+}
+
+async function getUserProfile(uidVal){
+  if (usersCache[uidVal]) return usersCache[uidVal];
+  const { db, doc, getDoc } = fb();
+  const snap = await getDoc(doc(db,'users',uidVal));
+  const data = snap.exists() ? snap.data() : { name:'Unknown', email:'' };
+  usersCache[uidVal] = data;
+  return data;
+}
+
+/* ── Tournament CRUD ─────────────────────────────────────────────── */
+async function createTournament(payload){
+  const { db, doc, setDoc } = fb();
+  const tid = uid();
+  await setDoc(doc(db, 'tournaments', tid), {
+    name: payload.name,
+    ownerUid: currentUser.uid,
+    ownerName: currentUser.name,
+    totalBudget: payload.totalBudget,
+    maxPlayersPerTeam: payload.maxPlayersPerTeam,
+    minBidIncrement: payload.minBidIncrement,
+    basePriceDefault: payload.basePriceDefault,
+    bidTimerSeconds: payload.bidTimerSeconds,
+    rules: payload.rules || '',
+    auctionAt: payload.auctionAt || null,
+    status: 'setup', // setup -> live -> completed
+    createdAt: Date.now()
+  });
+  return tid;
+}
+async function updateTournament(tid, patch){
+  const { db, doc, updateDoc } = fb();
+  await updateDoc(doc(db, 'tournaments', tid), patch);
+}
+
+/* ── Join requests ───────────────────────────────────────────────── */
+async function sendJoinRequest(tid, name){
+  const { db, doc, setDoc } = fb();
+  const rid = currentUser.uid; // one request per user per tournament — uid as doc id keeps it naturally unique
+  await setDoc(doc(db, 'tournaments', tid, 'requests', rid), {
+    uid: currentUser.uid, name, status:'pending', createdAt: Date.now()
+  });
+}
+async function respondToRequest(tid, rid, approve){
+  const { db, doc, updateDoc } = fb();
+  await updateDoc(doc(db, 'tournaments', tid, 'requests', rid), { status: approve?'approved':'rejected' });
+}
+
+/* ── Teams (owner assigns an approved participant as captain) ──────── */
+async function assignTeam(tid, name, participantUid, participantName, budget){
+  const { db, doc, setDoc } = fb();
+  const teamId = uid();
+  await setDoc(doc(db, 'tournaments', tid, 'teams', teamId), {
+    name, participantUid, participantName,
+    budgetTotal: budget, budgetSpent: 0,
+    createdAt: Date.now()
+  });
+  return teamId;
+}
+async function updateTeam(tid, teamId, patch){
+  const { db, doc, updateDoc } = fb();
+  await updateDoc(doc(db, 'tournaments', tid, 'teams', teamId), patch);
+}
+async function deleteTeamDoc(tid, teamId){
+  const { db, doc, deleteDoc } = fb();
+  await deleteDoc(doc(db, 'tournaments', tid, 'teams', teamId));
+}
+
+/* ── Players ─────────────────────────────────────────────────────── */
+async function addPlayer(tid, name, role, basePrice){
+  const { db, doc, setDoc } = fb();
+  const pid = uid();
+  await setDoc(doc(db, 'tournaments', tid, 'players', pid), {
+    name, role, basePrice, status:'available', soldTo:null, soldPrice:null, createdAt: Date.now()
+  });
+  return pid;
+}
+async function updatePlayerDoc(tid, pid, patch){
+  const { db, doc, updateDoc } = fb();
+  await updateDoc(doc(db, 'tournaments', tid, 'players', pid), patch);
+}
+async function deletePlayerDoc(tid, pid){
+  const { db, doc, deleteDoc } = fb();
+  await deleteDoc(doc(db, 'tournaments', tid, 'players', pid));
+}
+
+/* ── Auction state / history ────────────────────────────────────── */
+async function setAuctionState(tid, patch){
+  const { db, doc, setDoc } = fb();
+  await setDoc(doc(db, 'tournaments', tid, 'state', 'auction'), patch, { merge:true });
+}
+async function addHistory(tid, entry){
+  const { db, doc, setDoc } = fb();
+  const hid = uid();
+  await setDoc(doc(db, 'tournaments', tid, 'history', hid), { ...entry, createdAt: Date.now() });
+}
+
+/* ── Listeners: dashboard lists (my tournaments, joinable tournaments, my requests) ── */
+function detachListListeners(){
+  listUnsubs.forEach(u=>{ try{u();}catch(e){} });
+  listUnsubs = [];
+  myTournaments = {}; joinableTournaments = {}; myRequests = {};
+}
+
+async function attachDashboardListeners(){
+  await waitForFb();
+  detachListListeners();
+  const { db, collection, onSnapshot } = fb();
+
+  listUnsubs.push(onSnapshot(collection(db,'tournaments'), snap=>{
+    const mine = {}, others = {};
+    snap.forEach(d=>{
+      const data = { id:d.id, ...d.data() };
+      if (data.ownerUid === currentUser.uid) mine[d.id] = data;
+      else others[d.id] = data;
+    });
+    myTournaments = mine;
+    joinableTournaments = others;
+    render();
+  }));
+}
+
+/* Firestore v9 modular doesn't expose collectionGroup off the same helper
+   object without importing it explicitly — pull it in lazily here since
+   it's only needed for this one cross-tournament "my requests" query. */
+let _collectionGroupFn = null;
+async function ensureCollectionGroup(){
+  if (_collectionGroupFn) return _collectionGroupFn;
+  const mod = await import("https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js");
+  _collectionGroupFn = mod.collectionGroup;
+  return _collectionGroupFn;
+}
+async function attachMyRequestsListener(){
+  const { db, onSnapshot, query, where } = fb();
+  const collectionGroup = await ensureCollectionGroup();
+  const q = query(collectionGroup(db,'requests'), where('uid','==',currentUser.uid));
+  listUnsubs.push(onSnapshot(q, snap=>{
+    const next = {};
+    snap.forEach(d=>{
+      // parent path: tournaments/{tid}/requests/{rid}
+      const tid = d.ref.parent.parent.id;
+      next[tid] = { id:d.id, tid, ...d.data() };
+    });
+    myRequests = next;
+    render();
+  }, err=>{ console.warn('myRequests listener failed (index may still be building):', err.message); }));
+}
+
+/* ── Listeners: an open tournament (owner or approved participant) ── */
+function detachTournamentListeners(){
+  unsubs.forEach(u=>{ try{u();}catch(e){} });
+  unsubs = [];
+  tCache=null; teamsCache={}; playersCache={}; auctionCache=null; historyCache=[]; requestsCache={};
+}
+
+async function attachTournamentListeners(tid){
+  await waitForFb();
+  detachTournamentListeners();
+  const { db, doc, onSnapshot, collection, query, orderBy } = fb();
+
+  unsubs.push(onSnapshot(doc(db,'tournaments',tid), snap=>{
+    tCache = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    render();
+  }));
+  unsubs.push(onSnapshot(collection(db,'tournaments',tid,'teams'), snap=>{
+    const next = {};
+    snap.forEach(d=> next[d.id] = { id:d.id, ...d.data() });
+    teamsCache = next;
+    render();
+  }));
+  unsubs.push(onSnapshot(collection(db,'tournaments',tid,'players'), snap=>{
+    const next = {};
+    snap.forEach(d=> next[d.id] = { id:d.id, ...d.data() });
+    playersCache = next;
+    render();
+  }));
+  unsubs.push(onSnapshot(doc(db,'tournaments',tid,'state','auction'), snap=>{
+    const prevPrice = auctionCache ? auctionCache.currentBid : null;
+    auctionCache = snap.exists() ? snap.data() : null;
+    if (auctionCache && prevPrice !== null && auctionCache.currentBid !== prevPrice) flashPrice = true;
+    render();
+  }));
+  unsubs.push(onSnapshot(query(collection(db,'tournaments',tid,'history'), orderBy('createdAt','desc')), snap=>{
+    historyCache = [];
+    snap.forEach(d=> historyCache.push({ id:d.id, ...d.data() }));
+    render();
+  }));
+  unsubs.push(onSnapshot(collection(db,'tournaments',tid,'requests'), snap=>{
+    const next = {};
+    snap.forEach(d=> next[d.id] = { id:d.id, ...d.data() });
+    requestsCache = next;
+    render();
+  }));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUCTION LOGIC
+   ═══════════════════════════════════════════════════════════════════ */
+function currentPlayer(){
+  if (!auctionCache || !auctionCache.currentPlayerId) return null;
+  return playersCache[auctionCache.currentPlayerId] || null;
+}
+async function startNextPlayer(){
+  if (!tCache) return;
+  const pool = Object.values(playersCache).filter(p=>p.status==='available').sort((a,b)=>a.createdAt-b.createdAt);
+  if (pool.length===0){ showToast('No players left in the pool', 'error'); return; }
+  const next = pool[0];
+  const base = next.basePrice || tCache.basePriceDefault || 0;
+  await updatePlayerDoc(tCache.id, next.id, { status:'current' });
+  await setAuctionState(tCache.id, {
+    currentPlayerId: next.id, currentBid: base, currentBidTeamId: null,
+    timerSeconds: tCache.bidTimerSeconds || 15, timerEndsAt: null, running: false
+  });
+  showToast('🎙️ ' + next.name + ' is on the block');
+}
+async function hostStartTimer(){
+  if (!tCache) return;
+  await setAuctionState(tCache.id, { timerEndsAt: Date.now() + (tCache.bidTimerSeconds||15)*1000, running: true });
+}
+async function hostResetTimer(){ return hostStartTimer(); }
+async function hostPauseTimer(){
+  if (!tCache) return;
+  await setAuctionState(tCache.id, { running:false });
+}
+async function placeBid(teamId, amount){
+  if (!tCache || !auctionCache || !auctionCache.currentPlayerId) return;
+  const team = teamsCache[teamId];
+  if (!team) return;
+  const remaining = (team.budgetTotal||0) - (team.budgetSpent||0);
+  if (amount > remaining){ showToast('Not enough budget left', 'error'); return; }
+  if (amount <= (auctionCache.currentBid||0)){ showToast('Bid must be higher than current price', 'error'); return; }
+  await setAuctionState(tCache.id, {
+    currentBid: amount, currentBidTeamId: teamId,
+    timerEndsAt: Date.now() + (tCache.bidTimerSeconds||15)*1000, running: true
+  });
+}
+async function markSold(){
+  if (!tCache || !auctionCache || !auctionCache.currentPlayerId) return;
+  const p = playersCache[auctionCache.currentPlayerId];
+  if (!p) return;
+  if (!auctionCache.currentBidTeamId){ showToast('No bids yet — mark Unsold instead', 'error'); return; }
+  const team = teamsCache[auctionCache.currentBidTeamId];
+  const price = auctionCache.currentBid;
+  await updatePlayerDoc(tCache.id, p.id, { status:'sold', soldTo: auctionCache.currentBidTeamId, soldPrice: price });
+  await updateTeam(tCache.id, auctionCache.currentBidTeamId, { budgetSpent: (team.budgetSpent||0) + price });
+  await addHistory(tCache.id, { playerId:p.id, playerName:p.name, teamId:auctionCache.currentBidTeamId, teamName:team.name, price, result:'sold' });
+  await setAuctionState(tCache.id, { currentPlayerId:null, currentBid:0, currentBidTeamId:null, timerEndsAt:null, running:false });
+  showToast('🔨 SOLD — ' + p.name + ' to ' + team.name + ' for ' + fmtMoney(price));
+}
+async function markUnsold(){
+  if (!tCache || !auctionCache || !auctionCache.currentPlayerId) return;
+  const p = playersCache[auctionCache.currentPlayerId];
+  if (!p) return;
+  await updatePlayerDoc(tCache.id, p.id, { status:'unsold' });
+  await addHistory(tCache.id, { playerId:p.id, playerName:p.name, teamId:null, teamName:null, price:null, result:'unsold' });
+  await setAuctionState(tCache.id, { currentPlayerId:null, currentBid:0, currentBidTeamId:null, timerEndsAt:null, running:false });
+  showToast('Unsold — ' + p.name);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════ */
+function render(){
+  const root = document.getElementById('root');
+  if (!authReady){ root.innerHTML = `<div class="loading-screen"><div class="spinner"></div>Loading…</div>`; return; }
+  if (!currentUser){ root.innerHTML = renderLanding(); attachLandingHandlers(); return; }
+
+  if (!route.tournamentId){ root.innerHTML = renderDashboard(); attachDashboardHandlers(); }
+  else { root.innerHTML = renderTournament(); attachTournamentHandlers(); }
+
+  if (flashPrice) setTimeout(()=>{ flashPrice=false; }, 500);
+}
+
+function topbar(rightHtml){
+  return `<div class="topbar">
+    <div class="brand"><div class="brand-mark">Q</div><div class="brand-name">Quiz <b>Auction</b></div></div>
+    <div class="topbar-right">${rightHtml}</div>
+  </div>`;
+}
+
+/* ── Landing (register / login) ─────────────────────────────────── */
+function renderLanding(){
+  return `
+  <div class="landing">
+    <div class="landing-mark">Q</div>
+    <h1>Run the room.<br>Own <em>every</em> bid.</h1>
+    <p class="sub">Create an account, host your own auction or request to join someone else's — captains bid live from their own screens.</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab ${authTab==='login'?'active':''}" data-tab="login">Log In</button>
+      <button class="auth-tab ${authTab==='register'?'active':''}" data-tab="register">Register</button>
+    </div>
+
+    <div class="auth-box">
+      ${authErr ? `<div class="err-box">${esc(authErr)}</div>` : ''}
+      ${authTab==='register' ? `<div class="field"><label>Your name</label><input id="regName" placeholder="e.g. Akmal" /></div>` : ''}
+      <div class="field"><label>Email</label><input id="authEmail" type="email" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password</label><input id="authPassword" type="password" placeholder="••••••••" /></div>
+      <button class="btn btn-gold btn-block btn-lg" id="authSubmitBtn" ${busy?'disabled':''}>${busy?'Please wait…':(authTab==='register'?'Create Account →':'Log In →')}</button>
+    </div>
+  </div>`;
+}
+
+function attachLandingHandlers(){
+  document.querySelectorAll('.auth-tab').forEach(b=>{
+    b.onclick = ()=>{ authTab = b.dataset.tab; authErr=''; render(); };
+  });
+  const submitBtn = document.getElementById('authSubmitBtn');
+  if (!submitBtn) return;
+  submitBtn.onclick = async ()=>{
+    const email = (document.getElementById('authEmail').value||'').trim().toLowerCase();
+    const password = document.getElementById('authPassword').value||'';
+    if (!email || !password){ authErr='Enter both email and password'; render(); return; }
+    if (authTab==='register'){
+      const name = (document.getElementById('regName').value||'').trim();
+      if (!name){ authErr='Enter your name'; render(); return; }
+      if (password.length < 6){ authErr='Password must be at least 6 characters'; render(); return; }
+      busy=true; authErr=''; render();
+      try{
+        await waitForFb();
+        await registerUser(name, email, password);
+        // onAuthStateChanged picks up the new session and renders the dashboard
+      }catch(e){
+        console.error(e);
+        authErr = e.code==='auth/email-already-in-use' ? 'That email is already registered — try logging in instead'
+                : e.code==='auth/invalid-email' ? 'That email address looks invalid'
+                : 'Could not create account — try again';
+        busy=false; render();
+      }
+    } else {
+      busy=true; authErr=''; render();
+      try{
+        await waitForFb();
+        await loginUser(email, password);
+      }catch(e){
+        console.error(e);
+        authErr = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found')
+          ? 'Incorrect email or password' : 'Could not log in — try again';
+        busy=false; render();
+      }
+    }
+  };
+}
+
+/* ── Dashboard: my tournaments + tournaments I can join ─────────── */
+let dashTab = 'mine'; // 'mine' | 'browse'
+function renderDashboard(){
+  const mine = Object.values(myTournaments).sort((a,b)=>b.createdAt-a.createdAt);
+  const browse = Object.values(joinableTournaments).sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+  <div class="app">
+    ${topbar(`
+      <span class="pill"><span class="dot"></span>${esc(currentUser.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>
+    `)}
+    <div class="tabs">
+      <button class="tab-btn ${dashTab==='mine'?'active':''}" data-dtab="mine">My Tournaments</button>
+      <button class="tab-btn ${dashTab==='browse'?'active':''}" data-dtab="browse">Browse & Join</button>
+    </div>
+
+    ${dashTab==='mine' ? `
+      <div class="section-title" style="margin-top:0">
+        <h2>You Own</h2>
+        <button class="btn btn-gold btn-sm" id="newTBtn">+ New Tournament</button>
+      </div>
+      ${mine.length===0 ? `<div class="empty"><div class="ic">🏆</div>No tournaments yet — create one to start building your auction.</div>` : `
+        <div class="t-grid">
+          ${mine.map(t=>renderTCard(t, true)).join('')}
+        </div>
+      `}
+    ` : `
+      <div class="section-title" style="margin-top:0"><h2>Open Tournaments</h2></div>
+      ${browse.length===0 ? `<div class="empty"><div class="ic">🔍</div>No tournaments from other hosts yet.</div>` : `
+        <div class="t-grid">
+          ${browse.map(t=>renderTCard(t, false)).join('')}
+        </div>
+      `}
+    `}
+    <div class="footer-note">Quiz Auction</div>
+  </div>
+  ${renderNewTournamentModal()}
+  `;
+}
+
+function renderTCard(t, isMine){
+  const myReq = myRequests[t.id];
+  let joinBadge = '';
+  if (!isMine){
+    if (myReq && myReq.status==='pending') joinBadge = `<span class="status-badge status-setup" style="margin-left:6px">Request Pending</span>`;
+    else if (myReq && myReq.status==='approved') joinBadge = `<span class="status-badge status-done" style="margin-left:6px">Joined</span>`;
+    else if (myReq && myReq.status==='rejected') joinBadge = `<span class="status-badge" style="margin-left:6px;background:var(--crimson-dim);color:#f9a5a8">Rejected</span>`;
+  }
+  return `
+  <div class="t-card" data-tid="${t.id}" data-mine="${isMine?'1':'0'}">
+    <span class="status-badge status-${t.status==='live'?'live':t.status==='completed'?'done':'setup'}">
+      ${t.status==='live'?'<span class="dot"></span> Live':t.status==='completed'?'Completed':'Setup'}
+    </span>${joinBadge}
+    <h3>${esc(t.name)}</h3>
+    <div class="meta">${isMine?'':'Host: '+esc(t.ownerName)+' · '}Budget ${fmtMoney(t.totalBudget)} · Max ${t.maxPlayersPerTeam}/team</div>
+    <div class="meta" style="margin-top:3px">🗓️ ${fmtDateTime(t.auctionAt)}</div>
+  </div>`;
+}
+
+let showNewTModal = false;
+function renderNewTournamentModal(){
+  if (!showNewTModal) return '';
+  return `
+  <div class="modal-backdrop" id="newTBackdrop">
+    <div class="modal">
+      <h3>New Tournament</h3>
+      <div class="field"><label>Tournament name</label><input id="ntName" placeholder="e.g. Friends League 2026" /></div>
+      <div class="field-row">
+        <div class="field"><label>Total budget / team</label><input id="ntBudget" type="number" placeholder="10000000" /></div>
+        <div class="field"><label>Max players / team</label><input id="ntMaxPlayers" type="number" placeholder="7" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Default base price</label><input id="ntBasePrice" type="number" placeholder="200000" /></div>
+        <div class="field"><label>Min bid increment</label><input id="ntIncrement" type="number" placeholder="50000" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Bid timer (seconds)</label><input id="ntTimer" type="number" placeholder="15" /></div>
+        <div class="field"><label>Auction date &amp; time</label><input id="ntAuctionAt" type="datetime-local" /></div>
+      </div>
+      <div class="field"><label>Rules (optional)</label><input id="ntRules" placeholder="e.g. Max 4 overseas players" /></div>
+      <div class="hint">Use whole numbers — e.g. 50000000 for ₹5 Cr. We'll format it nicely everywhere.</div>
+      <div class="modal-close-row">
+        <button class="btn btn-ghost btn-sm" id="ntCancel">Cancel</button>
+        <button class="btn btn-gold btn-sm" id="ntCreate" ${busy?'disabled':''}>${busy?'Creating…':'Create'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachDashboardHandlers(){
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logout;
+  document.querySelectorAll('[data-dtab]').forEach(b=>{ b.onclick = ()=>{ dashTab=b.dataset.dtab; render(); }; });
+
+  document.querySelectorAll('.t-card').forEach(el=>{
+    el.onclick = async ()=>{
+      route = { page:'tournament', tournamentId: el.dataset.tid };
+      await attachTournamentListeners(el.dataset.tid);
+      render();
+    };
+  });
+
+  const newTBtn = document.getElementById('newTBtn');
+  if (newTBtn) newTBtn.onclick = ()=>{ showNewTModal=true; render(); };
+  const backdrop = document.getElementById('newTBackdrop');
+  if (backdrop) backdrop.onclick = (e)=>{ if(e.target===backdrop){ showNewTModal=false; render(); } };
+  const cancel = document.getElementById('ntCancel');
+  if (cancel) cancel.onclick = ()=>{ showNewTModal=false; render(); };
+  const create = document.getElementById('ntCreate');
+  if (create) create.onclick = async ()=>{
+    const name=(document.getElementById('ntName').value||'').trim();
+    const totalBudget=Number(document.getElementById('ntBudget').value)||0;
+    const maxPlayersPerTeam=Number(document.getElementById('ntMaxPlayers').value)||7;
+    const basePriceDefault=Number(document.getElementById('ntBasePrice').value)||0;
+    const minBidIncrement=Number(document.getElementById('ntIncrement').value)||10000;
+    const bidTimerSeconds=Number(document.getElementById('ntTimer').value)||15;
+    const auctionAtRaw=document.getElementById('ntAuctionAt').value;
+    const auctionAt = auctionAtRaw ? new Date(auctionAtRaw).getTime() : null;
+    const rules=(document.getElementById('ntRules').value||'').trim();
+    if (!name||!totalBudget){ showToast('Name and total budget are required', 'error'); return; }
+    busy=true; render();
+    try{
+      await waitForFb();
+      const tid = await createTournament({ name, totalBudget, maxPlayersPerTeam, basePriceDefault, minBidIncrement, bidTimerSeconds, rules, auctionAt });
+      showNewTModal=false; busy=false;
+      route = { page:'tournament', tournamentId: tid };
+      await attachTournamentListeners(tid);
+      render();
+    }catch(e){
+      console.error(e);
+      showToast('Could not create tournament — try again', 'error');
+      busy=false; render();
+    }
+  };
+}
+
+/* ── Tournament view — branches by whether I'm the owner ─────────── */
+let hostTab = 'players'; // players | teams | requests | rules | auction
+function renderTournament(){
+  if (!tCache) return `<div class="loading-screen"><div class="spinner"></div>Loading tournament…</div>`;
+  const isOwner = tCache.ownerUid === currentUser.uid;
+  const myReq = requestsCache[currentUser.uid];
+  const myTeam = Object.values(teamsCache).find(tm=>tm.participantUid===currentUser.uid);
+
+  if (isOwner) return renderOwnerTournament();
+  if (myTeam) return renderCaptainView(myTeam);
+  return renderParticipantGate(myReq);
+}
+
+/* Non-owner, not-yet-a-captain: show join-request status / button */
+function renderParticipantGate(myReq){
+  const t = tCache;
+  let body;
+  if (!myReq){
+    body = `
+      <div class="card" style="text-align:center;padding:32px 20px">
+        <div style="font-size:34px;margin-bottom:10px">🙋</div>
+        <div style="margin-bottom:16px;color:var(--text-dim)">You haven't requested to join this tournament yet.</div>
+        <div class="field" style="max-width:280px;margin:0 auto 14px;text-align:left"><label>Your name (shown to the host)</label><input id="reqName" value="${esc(currentUser.name)}" /></div>
+        <button class="btn btn-gold btn-lg" id="sendReqBtn" ${busy?'disabled':''}>${busy?'Sending…':'Request to Join →'}</button>
+      </div>`;
+  } else if (myReq.status==='pending'){
+    body = `<div class="card" style="text-align:center;padding:32px 20px">
+      <div style="font-size:34px;margin-bottom:10px">⏳</div>
+      <div style="color:var(--text-dim)">Your request is waiting for ${esc(t.ownerName)} to approve it.</div>
+    </div>`;
+  } else if (myReq.status==='rejected'){
+    body = `<div class="card" style="text-align:center;padding:32px 20px">
+      <div style="font-size:34px;margin-bottom:10px">🚫</div>
+      <div style="color:var(--text-dim)">${esc(t.ownerName)} didn't approve your request for this tournament.</div>
+    </div>`;
+  } else { // approved but not yet assigned a team
+    body = `<div class="card" style="text-align:center;padding:32px 20px">
+      <div style="font-size:34px;margin-bottom:10px">✅</div>
+      <div style="color:var(--text-dim)">You're approved! Waiting for ${esc(t.ownerName)} to assign you a team.</div>
+    </div>`;
+  }
+  return `
+  <div class="app">
+    ${topbar(`<span class="pill"><span class="dot"></span>${esc(currentUser.name)}</span><button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>`)}
+    <a class="back-link" id="backToDash">← All tournaments</a>
+    <div class="section-title" style="margin-top:0"><h2>${esc(t.name)}</h2></div>
+    <div class="meta" style="margin-bottom:14px;color:var(--text-faint)">🗓️ ${fmtDateTime(t.auctionAt)} · Host: ${esc(t.ownerName)}</div>
+    ${body}
+  </div>`;
+}
+
+function attachParticipantGateHandlers(){
+  const backBtn = document.getElementById('backToDash');
+  if (backBtn) backBtn.onclick = ()=>{ detachTournamentListeners(); route={page:'dashboard'}; render(); };
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logout;
+  const sendBtn = document.getElementById('sendReqBtn');
+  if (sendBtn) sendBtn.onclick = async ()=>{
+    const name = (document.getElementById('reqName').value||'').trim() || currentUser.name;
+    busy=true; render();
+    try{ await sendJoinRequest(tCache.id, name); }
+    catch(e){ console.error(e); showToast('Could not send request', 'error'); }
+    busy=false; render();
+  };
+}
+
+/* ── Owner view (setup + live control) ──────────────────────────── */
+function renderOwnerTournament(){
+  const t = tCache;
+  const pendingCount = Object.values(requestsCache).filter(r=>r.status==='pending').length;
+  return `
+  <div class="app">
+    ${topbar(`<span class="pill"><span class="dot"></span>${esc(currentUser.name)}</span><button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>`)}
+    <a class="back-link" id="backToDash">← All tournaments</a>
+    <div class="section-title" style="margin-top:0">
+      <h2>${esc(t.name)}</h2>
+      <span class="status-badge status-${t.status==='live'?'live':t.status==='completed'?'done':'setup'}">
+        ${t.status==='live'?'<span class="dot"></span> Live':t.status==='completed'?'Completed':'Setup'}
+      </span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn ${hostTab==='players'?'active':''}" data-tab="players">Players</button>
+      <button class="tab-btn ${hostTab==='requests'?'active':''}" data-tab="requests">Requests${pendingCount>0?` (${pendingCount})`:''}</button>
+      <button class="tab-btn ${hostTab==='teams'?'active':''}" data-tab="teams">Teams</button>
+      <button class="tab-btn ${hostTab==='rules'?'active':''}" data-tab="rules">Rules & Budget</button>
+      <button class="tab-btn ${hostTab==='auction'?'active':''}" data-tab="auction">Auction Room</button>
+    </div>
+
+    ${hostTab==='players' ? renderOwnerPlayersTab() : ''}
+    ${hostTab==='requests' ? renderOwnerRequestsTab() : ''}
+    ${hostTab==='teams' ? renderOwnerTeamsTab() : ''}
+    ${hostTab==='rules' ? renderOwnerRulesTab() : ''}
+    ${hostTab==='auction' ? renderOwnerAuctionTab() : ''}
+
+    <div class="footer-note">Tournament ID: ${t.id}</div>
+  </div>
+  ${renderAddPlayerModal()}
+  ${renderAssignTeamModal()}
+  `;
+}
+
+function renderOwnerPlayersTab(){
+  const players = Object.values(playersCache).sort((a,b)=>a.createdAt-b.createdAt);
+  const available = players.filter(p=>p.status==='available');
+  const sold = players.filter(p=>p.status==='sold');
+  const unsold = players.filter(p=>p.status==='unsold');
+  return `
+  <div class="card">
+    <div class="section-title" style="margin-top:0">
+      <h2 style="font-size:15px">Player Pool <span style="color:var(--text-faint);font-weight:500">(${available.length} available · ${sold.length} sold · ${unsold.length} unsold)</span></h2>
+      <button class="btn btn-gold btn-sm" id="addPlayerBtn">+ Add Player</button>
+    </div>
+    ${players.length===0 ? `<div class="empty"><div class="ic">🏏</div>Add players to build your auction pool.</div>` : players.map(p=>`
+      <div class="list-row">
+        <div class="avatar">${esc((p.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="info">
+          <div class="name">${esc(p.name)} <span class="role-tag role-${esc(p.role)}">${esc(p.role)}</span></div>
+          <div class="sub">Base ${fmtMoney(p.basePrice)} ${p.status==='sold' ? `· Sold to ${esc(teamsCache[p.soldTo]?.name||'—')} for ${fmtMoney(p.soldPrice)}` : p.status==='unsold' ? '· Unsold' : p.status==='current' ? '· On the block now' : ''}</div>
+        </div>
+        ${p.status==='available' ? `<button class="icon-btn danger" data-del-player="${p.id}" title="Remove">✕</button>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderOwnerRequestsTab(){
+  const reqs = Object.values(requestsCache).sort((a,b)=>b.createdAt-a.createdAt);
+  const pending = reqs.filter(r=>r.status==='pending');
+  const decided = reqs.filter(r=>r.status!=='pending');
+  return `
+  <div class="card">
+    <div class="board-title">Pending Requests</div>
+    ${pending.length===0 ? `<div class="empty" style="padding:20px 10px"><div class="ic">📭</div>No pending join requests.</div>` : pending.map(r=>`
+      <div class="list-row">
+        <div class="avatar">${esc((r.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="info"><div class="name">${esc(r.name)}</div><div class="sub">Requested ${fmtDateTime(r.createdAt)}</div></div>
+        <button class="icon-btn" style="color:#8ceab4" data-approve-req="${r.id}" title="Approve">✓</button>
+        <button class="icon-btn danger" data-reject-req="${r.id}" title="Reject">✕</button>
+      </div>
+    `).join('')}
+  </div>
+  ${decided.length>0 ? `
+  <div class="card" style="margin-top:14px">
+    <div class="board-title">Decided</div>
+    ${decided.map(r=>`
+      <div class="list-row">
+        <div class="avatar">${esc((r.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="info"><div class="name">${esc(r.name)}</div><div class="sub">${r.status==='approved'?'Approved':'Rejected'}</div></div>
+      </div>
+    `).join('')}
+  </div>` : ''}
+  `;
+}
+
+function renderOwnerTeamsTab(){
+  const teams = Object.values(teamsCache).sort((a,b)=>a.createdAt-b.createdAt);
+  const approvedNotAssigned = Object.values(requestsCache).filter(r=>
+    r.status==='approved' && !teams.some(tm=>tm.participantUid===r.uid)
+  );
+  return `
+  <div class="card">
+    <div class="section-title" style="margin-top:0">
+      <h2 style="font-size:15px">Teams &amp; Captains</h2>
+      ${approvedNotAssigned.length>0 ? `<button class="btn btn-gold btn-sm" id="assignTeamBtn">🧢 Assign Captain</button>` : ''}
+    </div>
+    ${approvedNotAssigned.length>0 ? `<div class="hint" style="margin-bottom:12px">${approvedNotAssigned.length} approved participant(s) waiting for a team.</div>` : ''}
+    ${teams.length===0 ? `<div class="empty"><div class="ic">👥</div>Approve a join request, then assign them as a team captain.</div>` : teams.map(team=>{
+      const remaining=(team.budgetTotal||0)-(team.budgetSpent||0);
+      const picked=Object.values(playersCache).filter(p=>p.soldTo===team.id);
+      return `
+      <div class="list-row" style="align-items:flex-start">
+        <div class="avatar">${esc((team.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="info">
+          <div class="name">${esc(team.name)}</div>
+          <div class="sub">🧢 ${esc(team.participantName)} · Remaining ${fmtMoney(remaining)} of ${fmtMoney(team.budgetTotal)} · ${picked.length} players</div>
+        </div>
+        <button class="icon-btn danger" data-del-team="${team.id}" title="Remove">✕</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderOwnerRulesTab(){
+  const t = tCache;
+  const auctionAtLocal = t.auctionAt ? new Date(t.auctionAt - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : '';
+  return `
+  <div class="card">
+    <div class="field"><label>Total budget / team</label><input id="rtBudget" type="number" value="${t.totalBudget}" /></div>
+    <div class="field-row">
+      <div class="field"><label>Max players / team</label><input id="rtMax" type="number" value="${t.maxPlayersPerTeam}" /></div>
+      <div class="field"><label>Bid timer (seconds)</label><input id="rtTimer" type="number" value="${t.bidTimerSeconds}" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Default base price</label><input id="rtBase" type="number" value="${t.basePriceDefault}" /></div>
+      <div class="field"><label>Min bid increment</label><input id="rtIncrement" type="number" value="${t.minBidIncrement}" /></div>
+    </div>
+    <div class="field"><label>Auction date &amp; time</label><input id="rtAuctionAt" type="datetime-local" value="${auctionAtLocal}" /></div>
+    <div class="field"><label>Rules</label><input id="rtRules" value="${esc(t.rules||'')}" placeholder="e.g. Max 4 overseas players" /></div>
+    <button class="btn btn-gold btn-block" id="saveRulesBtn" ${busy?'disabled':''}>${busy?'Saving…':'Save Changes'}</button>
+    <div class="hint" style="margin-top:14px">Changing budget/timer only affects new bids going forward — it won't rewrite already-sold players.</div>
+  </div>`;
+}
+
+function renderOwnerAuctionTab(){
+  const t = tCache;
+  const available = Object.values(playersCache).filter(p=>p.status==='available');
+  const teams = Object.values(teamsCache);
+  const cp = currentPlayer();
+
+  let arenaHtml;
+  if (!cp){
+    arenaHtml = `
+    <div class="arena">
+      <div class="no-active">
+        <div class="ic">🎙️</div>
+        <div style="margin-bottom:16px">${available.length===0 ? 'Pool is empty — all players have gone through the block.' : teams.length===0 ? 'Assign at least one team before starting the auction.' : 'No player on the block right now.'}</div>
+        ${available.length>0 && teams.length>0 ? `<button class="btn btn-gold btn-lg" id="startNextBtn">Bring Up Next Player →</button>` : ''}
+      </div>
+    </div>`;
+  } else {
+    const leaderName = auctionCache.currentBidTeamId ? (teamsCache[auctionCache.currentBidTeamId]?.name||'—') : null;
+    arenaHtml = `
+    <div class="arena">
+      <div class="arena-tag">On the Block</div>
+      <div class="player-name">${esc(cp.name)}</div>
+      <div class="player-role-row"><span class="role-tag role-${esc(cp.role)}">${esc(cp.role)}</span><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
+      <div class="price-block">
+        <div class="price-label">Current Bid</div>
+        <div class="price-value mono ${flashPrice?'flash':''}">${fmtMoney(auctionCache.currentBid)}</div>
+        ${leaderName ? `<div class="price-leader">🏅 ${esc(leaderName)}</div>` : `<div class="price-leader" style="color:var(--text-faint)">No bids yet</div>`}
+      </div>
+      ${renderTimerRing()}
+      <div class="bid-row">
+        ${!auctionCache.running ? `<button class="btn btn-teal btn-lg" id="startTimerBtn">▶ Start Timer</button>` : `<button class="btn btn-ghost btn-lg" id="pauseTimerBtn">⏸ Pause</button>`}
+        <button class="btn btn-ghost btn-lg" id="resetTimerBtn">↻ Reset Timer</button>
+      </div>
+      <div class="bid-row" style="margin-top:10px">
+        <button class="btn btn-gold btn-lg" id="markSoldBtn">🔨 Mark Sold</button>
+        <button class="btn btn-crimson btn-lg" id="markUnsoldBtn">Mark Unsold</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  ${arenaHtml}
+  <div class="board">
+    <div class="board-title">Team Budgets</div>
+    ${teams.sort((a,b)=>((b.budgetTotal-b.budgetSpent)-(a.budgetTotal-a.budgetSpent))).map(team=>{
+      const remaining=(team.budgetTotal||0)-(team.budgetSpent||0);
+      const pct=team.budgetTotal?Math.max(0,Math.min(100,(remaining/team.budgetTotal)*100)):0;
+      const cnt=Object.values(playersCache).filter(p=>p.soldTo===team.id).length;
+      const leading=auctionCache && auctionCache.currentBidTeamId===team.id;
+      return `
+      <div class="team-strip ${leading?'leading':''}">
+        <div class="tname">${esc(team.name)}</div>
+        <div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%"></div></div>
+        <div class="amt mono">${fmtMoney(remaining)}</div>
+        <div class="cnt">${cnt}/${t.maxPlayersPerTeam}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${historyCache.length>0 ? `
+  <div class="card" style="margin-top:16px">
+    <div class="board-title" style="margin-bottom:8px">Auction Log</div>
+    ${historyCache.slice(0,20).map(h=>`
+      <div class="log-row ${h.result==='unsold'?'unsold':''}">
+        <div><span class="lp">${esc(h.playerName)}</span> <span class="lt">${h.result==='sold' ? '→ ' + esc(h.teamName) : '— unsold'}</span></div>
+        ${h.result==='sold' ? `<div class="la">${fmtMoney(h.price)}</div>` : ''}
+      </div>
+    `).join('')}
+  </div>` : ''}
+  `;
+}
+
+function renderTimerRing(){
+  if (!auctionCache || !auctionCache.timerEndsAt || !auctionCache.running){
+    return `<div class="timer-ring-wrap"><div class="timer-ring"><svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"></circle></svg><div class="timer-num">--</div></div></div>`;
+  }
+  const total=(tCache.bidTimerSeconds||15)*1000;
+  const remainMs=Math.max(0, auctionCache.timerEndsAt-Date.now());
+  const remainSec=Math.ceil(remainMs/1000);
+  const pct=Math.max(0,Math.min(1,remainMs/total));
+  const circumference=2*Math.PI*38;
+  const offset=circumference*(1-pct);
+  const urgent=remainSec<=5;
+  return `<div class="timer-ring-wrap"><div class="timer-ring">
+    <svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"></circle><circle class="fg ${urgent?'urgent':''}" cx="44" cy="44" r="38" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle></svg>
+    <div class="timer-num" style="${urgent?'color:var(--crimson)':''}">${remainSec}</div>
+  </div></div>`;
+}
+
+let showAddPlayerModal = false;
+function renderAddPlayerModal(){
+  if (!showAddPlayerModal) return '';
+  return `
+  <div class="modal-backdrop" id="apBackdrop">
+    <div class="modal">
+      <h3>Add Player</h3>
+      <div class="field"><label>Player name</label><input id="apName" placeholder="e.g. Babar Azam" /></div>
+      <div class="field-row">
+        <div class="field"><label>Role</label>
+          <select id="apRole">
+            <option value="BAT">Batsman</option><option value="BOWL">Bowler</option>
+            <option value="AR">All-Rounder</option><option value="WK">Wicketkeeper</option>
+          </select>
+        </div>
+        <div class="field"><label>Base price</label><input id="apBase" type="number" value="${tCache?.basePriceDefault||0}" /></div>
+      </div>
+      <div class="modal-close-row">
+        <button class="btn btn-ghost btn-sm" id="apCancel">Cancel</button>
+        <button class="btn btn-gold btn-sm" id="apCreate" ${busy?'disabled':''}>${busy?'Adding…':'Add Player'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+let showAssignTeamModal = false;
+function renderAssignTeamModal(){
+  if (!showAssignTeamModal) return '';
+  const teams = Object.values(teamsCache);
+  const approvedNotAssigned = Object.values(requestsCache).filter(r=>
+    r.status==='approved' && !teams.some(tm=>tm.participantUid===r.uid)
+  );
+  if (approvedNotAssigned.length===0) return '';
+  return `
+  <div class="modal-backdrop" id="atBackdrop">
+    <div class="modal">
+      <h3>Assign Captain</h3>
+      <div class="field"><label>Approved participant</label>
+        <select id="atParticipant">
+          ${approvedNotAssigned.map(r=>`<option value="${r.uid}" data-name="${esc(r.name)}">${esc(r.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Team name</label><input id="atTeamName" placeholder="e.g. Karachi Kings" /></div>
+      <div class="field"><label>Budget (defaults to tournament total)</label><input id="atBudget" type="number" value="${tCache?.totalBudget||0}" /></div>
+      <div class="modal-close-row">
+        <button class="btn btn-ghost btn-sm" id="atCancel">Cancel</button>
+        <button class="btn btn-gold btn-sm" id="atCreate" ${busy?'disabled':''}>${busy?'Assigning…':'Assign'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachTournamentHandlers(){
+  const isOwner = tCache.ownerUid === currentUser.uid;
+  if (!isOwner){
+    const myTeam = Object.values(teamsCache).find(tm=>tm.participantUid===currentUser.uid);
+    if (myTeam) return attachCaptainHandlers(myTeam);
+    return attachParticipantGateHandlers();
+  }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logout;
+  const back = document.getElementById('backToDash');
+  if (back) back.onclick = ()=>{ detachTournamentListeners(); route={page:'dashboard'}; render(); };
+  document.querySelectorAll('.tab-btn').forEach(b=>{ b.onclick = ()=>{ hostTab=b.dataset.tab; render(); }; });
+
+  // players
+  const addPlayerBtn = document.getElementById('addPlayerBtn');
+  if (addPlayerBtn) addPlayerBtn.onclick = ()=>{ showAddPlayerModal=true; render(); };
+  const apBackdrop = document.getElementById('apBackdrop');
+  if (apBackdrop) apBackdrop.onclick = (e)=>{ if(e.target===apBackdrop){ showAddPlayerModal=false; render(); } };
+  const apCancel = document.getElementById('apCancel');
+  if (apCancel) apCancel.onclick = ()=>{ showAddPlayerModal=false; render(); };
+  const apCreate = document.getElementById('apCreate');
+  if (apCreate) apCreate.onclick = async ()=>{
+    const name=(document.getElementById('apName').value||'').trim();
+    const role=document.getElementById('apRole').value;
+    const base=Number(document.getElementById('apBase').value)||0;
+    if (!name){ showToast('Enter a player name', 'error'); return; }
+    busy=true; render();
+    try{ await addPlayer(tCache.id, name, role, base); showAddPlayerModal=false; }
+    catch(e){ console.error(e); showToast('Could not add player', 'error'); }
+    busy=false; render();
+  };
+  document.querySelectorAll('[data-del-player]').forEach(el=>{
+    el.onclick = async ()=>{
+      if (!confirm('Remove this player from the pool?')) return;
+      try{ await deletePlayerDoc(tCache.id, el.dataset.delPlayer); }catch(e){ showToast('Could not remove player', 'error'); }
+    };
+  });
+
+  // requests
+  document.querySelectorAll('[data-approve-req]').forEach(el=>{
+    el.onclick = async ()=>{ try{ await respondToRequest(tCache.id, el.dataset.approveReq, true); showToast('Approved — now assign them a team in the Teams tab'); }catch(e){ showToast('Could not approve', 'error'); } };
+  });
+  document.querySelectorAll('[data-reject-req]').forEach(el=>{
+    el.onclick = async ()=>{ try{ await respondToRequest(tCache.id, el.dataset.rejectReq, false); }catch(e){ showToast('Could not reject', 'error'); } };
+  });
+
+  // teams
+  const assignTeamBtn = document.getElementById('assignTeamBtn');
+  if (assignTeamBtn) assignTeamBtn.onclick = ()=>{ showAssignTeamModal=true; render(); };
+  const atBackdrop = document.getElementById('atBackdrop');
+  if (atBackdrop) atBackdrop.onclick = (e)=>{ if(e.target===atBackdrop){ showAssignTeamModal=false; render(); } };
+  const atCancel = document.getElementById('atCancel');
+  if (atCancel) atCancel.onclick = ()=>{ showAssignTeamModal=false; render(); };
+  const atCreate = document.getElementById('atCreate');
+  if (atCreate) atCreate.onclick = async ()=>{
+    const sel = document.getElementById('atParticipant');
+    const participantUid = sel.value;
+    const participantName = sel.selectedOptions[0].dataset.name;
+    const teamName = (document.getElementById('atTeamName').value||'').trim();
+    const budget = Number(document.getElementById('atBudget').value)||tCache.totalBudget;
+    if (!teamName){ showToast('Enter a team name', 'error'); return; }
+    busy=true; render();
+    try{ await assignTeam(tCache.id, teamName, participantUid, participantName, budget); showAssignTeamModal=false; }
+    catch(e){ console.error(e); showToast('Could not assign team', 'error'); }
+    busy=false; render();
+  };
+  document.querySelectorAll('[data-del-team]').forEach(el=>{
+    el.onclick = async ()=>{
+      if (!confirm('Remove this team? Already-sold players keep their record but the team disappears from budgets.')) return;
+      try{ await deleteTeamDoc(tCache.id, el.dataset.delTeam); }catch(e){ showToast('Could not remove team', 'error'); }
+    };
+  });
+
+  // rules
+  const saveRulesBtn = document.getElementById('saveRulesBtn');
+  if (saveRulesBtn) saveRulesBtn.onclick = async ()=>{
+    const auctionAtRaw = document.getElementById('rtAuctionAt').value;
+    const patch = {
+      totalBudget: Number(document.getElementById('rtBudget').value)||0,
+      maxPlayersPerTeam: Number(document.getElementById('rtMax').value)||7,
+      bidTimerSeconds: Number(document.getElementById('rtTimer').value)||15,
+      basePriceDefault: Number(document.getElementById('rtBase').value)||0,
+      minBidIncrement: Number(document.getElementById('rtIncrement').value)||10000,
+      auctionAt: auctionAtRaw ? new Date(auctionAtRaw).getTime() : null,
+      rules: (document.getElementById('rtRules').value||'').trim()
+    };
+    busy=true; render();
+    try{ await updateTournament(tCache.id, patch); showToast('Saved'); }
+    catch(e){ showToast('Could not save', 'error'); }
+    busy=false; render();
+  };
+
+  // auction
+  const startNextBtn = document.getElementById('startNextBtn');
+  if (startNextBtn) startNextBtn.onclick = async ()=>{
+    if (tCache.status==='setup') await updateTournament(tCache.id, { status:'live' });
+    await startNextPlayer();
+  };
+  const startTimerBtn = document.getElementById('startTimerBtn');
+  if (startTimerBtn) startTimerBtn.onclick = hostStartTimer;
+  const pauseTimerBtn = document.getElementById('pauseTimerBtn');
+  if (pauseTimerBtn) pauseTimerBtn.onclick = hostPauseTimer;
+  const resetTimerBtn = document.getElementById('resetTimerBtn');
+  if (resetTimerBtn) resetTimerBtn.onclick = hostResetTimer;
+  const markSoldBtn = document.getElementById('markSoldBtn');
+  if (markSoldBtn) markSoldBtn.onclick = markSold;
+  const markUnsoldBtn = document.getElementById('markUnsoldBtn');
+  if (markUnsoldBtn) markUnsoldBtn.onclick = markUnsold;
+}
+
+/* ── Captain view (approved participant who's been assigned a team) ── */
+function renderCaptainView(team){
+  const t = tCache;
+  const remaining = (team.budgetTotal||0)-(team.budgetSpent||0);
+  const myPlayers = Object.values(playersCache).filter(p=>p.soldTo===team.id);
+  const cp = currentPlayer();
+  const isLeading = auctionCache && auctionCache.currentBidTeamId===team.id;
+  const increment = t.minBidIncrement || 10000;
+  const nextBid = auctionCache ? (auctionCache.currentBid||0) + increment : 0;
+
+  let arenaHtml;
+  if (!cp){
+    arenaHtml = `<div class="arena"><div class="no-active"><div class="ic">⏳</div>Waiting for the host to bring up the next player…</div></div>`;
+  } else {
+    const leaderName = auctionCache.currentBidTeamId ? (teamsCache[auctionCache.currentBidTeamId]?.name||'—') : null;
+    const canAffordNext = nextBid <= remaining;
+    const full = myPlayers.length >= t.maxPlayersPerTeam;
+    arenaHtml = `
+    <div class="arena">
+      <div class="arena-tag">On the Block</div>
+      <div class="player-name">${esc(cp.name)}</div>
+      <div class="player-role-row"><span class="role-tag role-${esc(cp.role)}">${esc(cp.role)}</span><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
+      <div class="price-block">
+        <div class="price-label">Current Bid</div>
+        <div class="price-value mono ${flashPrice?'flash':''}">${fmtMoney(auctionCache.currentBid)}</div>
+        ${isLeading ? `<div class="price-leader">🏅 You're leading!</div>` : leaderName ? `<div class="price-leader" style="color:var(--text-dim)">${esc(leaderName)} is leading</div>` : `<div class="price-leader" style="color:var(--text-faint)">No bids yet</div>`}
+      </div>
+      ${renderTimerRing()}
+      ${full ? `<div class="hint" style="margin-bottom:8px">Your squad is full (${t.maxPlayersPerTeam}/${t.maxPlayersPerTeam}) — you can't bid further.</div>` :
+        isLeading ? `<div class="hint" style="margin-bottom:8px">You're currently the highest bidder.</div>` :
+        !canAffordNext ? `<div class="hint" style="margin-bottom:8px;color:#f39ea1">Not enough budget for the next bid.</div>` : ''}
+      <div class="bid-row">
+        <button class="btn btn-teal btn-lg" id="placeBidBtn" ${(full||isLeading||!canAffordNext||!auctionCache.running)?'disabled':''}>Bid ${fmtMoney(nextBid)}</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="app">
+    ${topbar(`<span class="pill"><span class="dot"></span>${esc(team.name)}</span><button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>`)}
+    <a class="back-link" id="backToDash">← All tournaments</a>
+    <div class="section-title" style="margin-top:0"><h2>${esc(t.name)}</h2></div>
+
+    ${arenaHtml}
+
+    <div class="card">
+      <div class="board-title">Your Budget</div>
+      <div class="team-strip" style="margin-bottom:0">
+        <div class="tname">${esc(team.name)}</div>
+        <div class="budget-bar"><div class="budget-bar-fill" style="width:${team.budgetTotal?Math.max(0,Math.min(100,(remaining/team.budgetTotal)*100)):0}%"></div></div>
+        <div class="amt mono">${fmtMoney(remaining)}</div>
+        <div class="cnt">${myPlayers.length}/${t.maxPlayersPerTeam}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="board-title">Your Squad</div>
+      <div class="squad-grid">
+        ${Array.from({length:t.maxPlayersPerTeam}).map((_,i)=>{
+          const p = myPlayers[i];
+          return p ? `<div class="squad-slot filled"><div class="pname">${esc(p.name)}</div><div class="pprice">${fmtMoney(p.soldPrice)}</div></div>`
+                    : `<div class="squad-slot"><div class="empty-lbl">Empty</div></div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="board" style="margin-top:16px">
+      <div class="board-title">All Teams</div>
+      ${Object.values(teamsCache).sort((a,b)=>((b.budgetTotal-b.budgetSpent)-(a.budgetTotal-a.budgetSpent))).map(tm=>{
+        const rem=(tm.budgetTotal||0)-(tm.budgetSpent||0);
+        const pct=tm.budgetTotal?Math.max(0,Math.min(100,(rem/tm.budgetTotal)*100)):0;
+        const cnt=Object.values(playersCache).filter(p=>p.soldTo===tm.id).length;
+        const leading=auctionCache && auctionCache.currentBidTeamId===tm.id;
+        return `
+        <div class="team-strip ${leading?'leading':''}">
+          <div class="tname">${esc(tm.name)}${tm.id===team.id?' (you)':''}</div>
+          <div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%"></div></div>
+          <div class="amt mono">${fmtMoney(rem)}</div>
+          <div class="cnt">${cnt}/${t.maxPlayersPerTeam}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="footer-note">Quiz Auction — good luck!</div>
+  </div>`;
+}
+
+function attachCaptainHandlers(team){
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logout;
+  const back = document.getElementById('backToDash');
+  if (back) back.onclick = ()=>{ detachTournamentListeners(); route={page:'dashboard'}; render(); };
+  const bidBtn = document.getElementById('placeBidBtn');
+  if (bidBtn) bidBtn.onclick = async ()=>{
+    const increment = tCache.minBidIncrement || 10000;
+    const nextBid = (auctionCache.currentBid||0) + increment;
+    bidBtn.disabled = true;
+    try{ await placeBid(team.id, nextBid); }
+    catch(e){ console.error(e); showToast('Bid failed — try again', 'error'); }
+  };
+}
+
+/* ── ticking clock ───────────────────────────────────────────────── */
+setInterval(()=>{
+  if (auctionCache && auctionCache.running && auctionCache.timerEndsAt){
+    if (Date.now() >= auctionCache.timerEndsAt && auctionCache.running){
+      auctionCache = { ...auctionCache, running:false }; // freeze visually; host still must Mark Sold/Unsold
+    }
+    render();
+  }
+}, 1000);
+
+/* ── boot: real Firebase Auth session ───────────────────────────── */
+async function boot(){
+  await waitForFb();
+  const { auth, onAuthStateChanged } = fa();
+  onAuthStateChanged(auth, async (user)=>{
+    authReady = true;
+    if (user){
+      const profile = await getUserProfile(user.uid);
+      currentUser = { uid: user.uid, email: user.email, name: profile.name || user.displayName || user.email };
+      if (route.page==='landing') route = { page:'dashboard' };
+      await attachDashboardListeners();
+      await attachMyRequestsListener();
+      if (route.tournamentId) await attachTournamentListeners(route.tournamentId);
+    } else {
+      currentUser = null;
+      detachTournamentListeners();
+      detachListListeners();
+      route = { page:'landing' };
+    }
+    render();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+if (document.readyState !== 'loading') boot();
+
+})();
+</script>
+</body>
+</html>
