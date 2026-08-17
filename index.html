@@ -307,18 +307,29 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 .team-strip .cnt{font-size:10.5px;color:var(--text-faint);min-width:32px;text-align:right;flex-shrink:0;}
 
 /* squad list (captain view) */
-.squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px;}
+.squad-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.squad-stats{display:flex;align-items:center;gap:12px;background:var(--bg-raised);border:1px solid var(--line-soft);border-radius:11px;padding:8px 14px;}
+.squad-stat{display:flex;flex-direction:column;align-items:center;min-width:52px;}
+.squad-stat .ss-num{font-weight:700;font-size:14px;color:var(--gold-bright);line-height:1.2;}
+.squad-stat .ss-lbl{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;margin-top:1px;}
+.squad-stat-divider{width:1px;height:22px;background:var(--line-soft);}
+.squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
 .squad-slot{
-  border:1.5px dashed var(--line);border-radius:11px;padding:13px 10px;text-align:center;
-  min-height:72px;display:flex;flex-direction:column;justify-content:center;transition:border-color .15s;
+  position:relative;border:1.5px dashed var(--line);border-radius:13px;padding:14px 12px 12px;text-align:center;
+  min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:border-color .15s, transform .15s;
 }
+.squad-slot .slot-num{position:absolute;top:7px;left:9px;font-size:9.5px;font-weight:700;color:var(--text-faint);letter-spacing:0.04em;}
 .squad-slot.filled{
-  border-style:solid;border-color:rgba(212,169,79,0.3);
-  background:linear-gradient(180deg, rgba(212,169,79,0.06), var(--bg-raised));
-  box-shadow:0 4px 14px -8px rgba(212,169,79,0.3);
+  border-style:solid;border-color:rgba(212,169,79,0.35);
+  background:linear-gradient(180deg, rgba(212,169,79,0.08), var(--bg-raised) 70%);
+  box-shadow:0 6px 18px -10px rgba(212,169,79,0.35);
 }
-.squad-slot .pname{font-weight:700;font-size:13px;}
-.squad-slot .pprice{font-family:'JetBrains Mono';font-size:11.5px;font-weight:600;color:var(--gold-bright);margin-top:3px;}
+.squad-slot.filled:hover{transform:translateY(-2px);}
+.squad-slot.filled.cat-diamond{border-color:rgba(94,196,255,0.4);background:linear-gradient(180deg, rgba(94,196,255,0.08), var(--bg-raised) 70%);box-shadow:0 6px 18px -10px rgba(94,196,255,0.35);}
+.squad-slot.filled.cat-gold{border-color:rgba(212,169,79,0.4);}
+.squad-slot.filled.cat-silver{border-color:rgba(170,175,185,0.4);background:linear-gradient(180deg, rgba(170,175,185,0.08), var(--bg-raised) 70%);}
+.squad-slot .pname{font-weight:700;font-size:13.5px;line-height:1.25;margin-top:2px;}
+.squad-slot .pprice{font-family:'JetBrains Mono';font-size:12px;font-weight:700;color:var(--gold-bright);margin-top:4px;}
 .squad-slot .empty-lbl{font-size:11px;color:var(--text-faint);}
 
 /* toast */
@@ -429,7 +440,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.1.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -1295,9 +1306,29 @@ function renderOwnerTeamsTab(){
           <div class="name">${esc(team.name)}</div>
           <div class="sub">🧢 ${esc(team.participantName)} · Remaining ${fmtMoney(remaining)} of ${fmtMoney(team.budgetTotal)} · ${picked.length} players</div>
         </div>
+        <button class="icon-btn" data-edit-team="${team.id}" title="Edit">✎</button>
         <button class="icon-btn danger" data-del-team="${team.id}" title="Remove">✕</button>
       </div>`;
     }).join('')}
+  </div>
+  ${showEditTeamModal ? renderEditTeamModal() : ''}`;
+}
+
+function renderEditTeamModal(){
+  const team = teamsCache[showEditTeamModal];
+  if (!team) return '';
+  return `
+  <div class="modal-backdrop" id="editTeamBackdrop">
+    <div class="modal">
+      <h3>Edit Team</h3>
+      <div class="field"><label>Team name</label><input id="etName" value="${esc(team.name)}" /></div>
+      <div class="field"><label>Total budget (in Cr)</label><input id="etBudget" type="number" step="0.01" value="${team.budgetTotal/1e7}" /></div>
+      <div class="hint" style="margin-bottom:14px">Already-spent budget (${fmtMoney(team.budgetSpent||0)}) stays as is — this only changes the total pool.</div>
+      <div class="modal-close-row">
+        <button class="btn btn-ghost" id="etCancel">Cancel</button>
+        <button class="btn btn-gold" id="etSave">Save</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1442,6 +1473,7 @@ function renderAddPlayerModal(){
 }
 
 let showAssignTeamModal = false;
+let showEditTeamModal = null; // holds teamId or null
 function renderAssignTeamModal(){
   if (!showAssignTeamModal) return '';
   const teams = Object.values(teamsCache);
@@ -1547,6 +1579,27 @@ function attachTournamentHandlers(){
       try{ await deleteTeamDoc(tCache.id, el.dataset.delTeam); }catch(e){ showToast('Could not remove team', 'error'); }
     };
   });
+  document.querySelectorAll('[data-edit-team]').forEach(el=>{
+    el.onclick = ()=>{ showEditTeamModal = el.dataset.editTeam; render(); };
+  });
+  const editTeamBackdrop = document.getElementById('editTeamBackdrop');
+  if (editTeamBackdrop) editTeamBackdrop.onclick = (e)=>{ if(e.target===editTeamBackdrop){ showEditTeamModal=null; render(); } };
+  const etCancel = document.getElementById('etCancel');
+  if (etCancel) etCancel.onclick = ()=>{ showEditTeamModal=null; render(); };
+  const etSave = document.getElementById('etSave');
+  if (etSave) etSave.onclick = async ()=>{
+    const name = (document.getElementById('etName').value||'').trim();
+    const budgetCr = Number(document.getElementById('etBudget').value)||0;
+    if (!name){ showToast('Enter a team name', 'error'); return; }
+    busy=true; render();
+    try{
+      await updateTeam(tCache.id, showEditTeamModal, { name, budgetTotal: Math.round(budgetCr*1e7) });
+      showEditTeamModal=null;
+      showToast('Team updated');
+    }
+    catch(e){ console.error(e); showToast('Could not update team', 'error'); }
+    busy=false; render();
+  };
 
   // rules
   const saveRulesBtn = document.getElementById('saveRulesBtn');
@@ -1668,12 +1721,27 @@ function renderCaptainView(team){
     </div>
 
     <div class="card" style="margin-top:14px">
-      <div class="board-title">Your Squad</div>
+      <div class="squad-header">
+        <div class="board-title" style="margin-bottom:0">Your Squad</div>
+        <div class="squad-stats">
+          <div class="squad-stat"><span class="ss-num">${myPlayers.length}</span><span class="ss-lbl">Players</span></div>
+          <div class="squad-stat-divider"></div>
+          <div class="squad-stat"><span class="ss-num mono">${fmtMoney(myPlayers.reduce((s,p)=>s+(p.soldPrice||0),0))}</span><span class="ss-lbl">Spent</span></div>
+          <div class="squad-stat-divider"></div>
+          <div class="squad-stat"><span class="ss-num mono">${myPlayers.length ? fmtMoney(Math.round(myPlayers.reduce((s,p)=>s+(p.soldPrice||0),0)/myPlayers.length)) : '—'}</span><span class="ss-lbl">Avg. Buy</span></div>
+        </div>
+      </div>
       <div class="squad-grid">
         ${Array.from({length:t.maxPlayersPerTeam}).map((_,i)=>{
           const p = myPlayers[i];
-          return p ? `<div class="squad-slot filled"><div class="pname">${esc(p.name)}</div><div class="pprice">${fmtMoney(p.soldPrice)}</div></div>`
-                    : `<div class="squad-slot"><div class="empty-lbl">Empty</div></div>`;
+          if (!p) return `<div class="squad-slot"><div class="slot-num">#${i+1}</div><div class="empty-lbl">Empty slot</div></div>`;
+          const catClass = p.category ? `cat-${p.category.toLowerCase()}` : '';
+          return `<div class="squad-slot filled ${catClass}">
+            <div class="slot-num">#${i+1}</div>
+            ${p.category ? `<span class="badge cat-${p.category.toLowerCase()}" style="margin-bottom:5px">${esc(p.category)}</span>` : ''}
+            <div class="pname">${esc(p.name)}</div>
+            <div class="pprice mono">${fmtMoney(p.soldPrice)}</div>
+          </div>`;
         }).join('')}
       </div>
     </div>
