@@ -382,7 +382,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.1";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -1057,6 +1057,7 @@ function renderOwnerPlayersTab(){
           <div class="name">${esc(p.name)}</div>
           <div class="sub">Base ${fmtMoney(p.basePrice)} ${p.status==='sold' ? `· Sold to ${esc(teamsCache[p.soldTo]?.name||'—')} for ${fmtMoney(p.soldPrice)}` : p.status==='unsold' ? '· Unsold' : p.status==='current' ? '· On the block now' : ''}</div>
         </div>
+        ${p.status==='unsold' ? `<button class="icon-btn" data-relist-player="${p.id}" title="Re-list for auction">↻</button>` : ''}
         ${p.status==='available' ? `<button class="icon-btn danger" data-del-player="${p.id}" title="Remove">✕</button>` : ''}
       </div>
     `).join('')}
@@ -1319,6 +1320,12 @@ function attachTournamentHandlers(){
       try{ await deletePlayerDoc(tCache.id, el.dataset.delPlayer); }catch(e){ showToast('Could not remove player', 'error'); }
     };
   });
+  document.querySelectorAll('[data-relist-player]').forEach(el=>{
+    el.onclick = async ()=>{
+      try{ await updatePlayerDoc(tCache.id, el.dataset.relistPlayer, { status:'available' }); showToast('Player re-listed for auction'); }
+      catch(e){ showToast('Could not re-list player', 'error'); }
+    };
+  });
 
   // requests
   document.querySelectorAll('[data-approve-req]').forEach(el=>{
@@ -1490,7 +1497,12 @@ function attachCaptainHandlers(team){
     const nextBid = (auctionCache.currentBid||0) + increment;
     bidBtn.disabled = true;
     try{ await placeBid(team.id, nextBid); }
-    catch(e){ console.error(e); showToast('Bid failed — try again', 'error'); }
+    catch(e){
+      console.error(e);
+      const reason = e?.code || e?.message || 'unknown error';
+      showToast('Bid failed: ' + reason, 'error');
+      bidBtn.disabled = false;
+    }
   };
 }
 
