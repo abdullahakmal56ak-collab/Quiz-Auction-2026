@@ -382,7 +382,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -667,14 +667,14 @@ async function startNextPlayer(){
   await updatePlayerDoc(tCache.id, next.id, { status:'current' });
   await setAuctionState(tCache.id, {
     currentPlayerId: next.id, currentBid: base, currentBidTeamId: null,
-    timerSeconds: tCache.bidTimerSeconds || 15,
-    timerEndsAt: Date.now() + (tCache.bidTimerSeconds||15)*1000, running: true
+    timerSeconds: tCache.bidTimerSeconds || 180,
+    timerEndsAt: Date.now() + (tCache.bidTimerSeconds||180)*1000, running: true
   });
   showToast('🎙️ ' + next.name + ' is on the block — bidding is live');
 }
 async function hostStartTimer(){
   if (!tCache) return;
-  await setAuctionState(tCache.id, { timerEndsAt: Date.now() + (tCache.bidTimerSeconds||15)*1000, running: true });
+  await setAuctionState(tCache.id, { timerEndsAt: Date.now() + (tCache.bidTimerSeconds||180)*1000, running: true });
 }
 async function hostResetTimer(){ return hostStartTimer(); }
 async function hostPauseTimer(){
@@ -690,7 +690,7 @@ async function placeBid(teamId, amount){
   if (amount <= (auctionCache.currentBid||0)){ showToast('Bid must be higher than current price', 'error'); return; }
   await setAuctionState(tCache.id, {
     currentBid: amount, currentBidTeamId: teamId,
-    timerEndsAt: Date.now() + (tCache.bidTimerSeconds||15)*1000, running: true
+    timerEndsAt: Date.now() + (tCache.bidTimerSeconds||180)*1000, running: true
   });
 }
 async function markSold(){
@@ -877,7 +877,7 @@ function renderNewTournamentModal(){
         <div class="field"><label>Min bid increment</label><input id="ntIncrement" type="number" placeholder="50000" /></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Bid timer (seconds)</label><input id="ntTimer" type="number" placeholder="15" /></div>
+        <div class="field"><label>Bid timer (seconds)</label><input id="ntTimer" type="number" placeholder="180" /></div>
         <div class="field"><label>Auction date &amp; time</label><input id="ntAuctionAt" type="datetime-local" /></div>
       </div>
       <div class="field"><label>Rules (optional)</label><input id="ntRules" placeholder="e.g. Max 4 overseas players" /></div>
@@ -916,7 +916,7 @@ function attachDashboardHandlers(){
     const maxPlayersPerTeam=Number(document.getElementById('ntMaxPlayers').value)||7;
     const basePriceDefault=Number(document.getElementById('ntBasePrice').value)||0;
     const minBidIncrement=Number(document.getElementById('ntIncrement').value)||10000;
-    const bidTimerSeconds=Number(document.getElementById('ntTimer').value)||15;
+    const bidTimerSeconds=Number(document.getElementById('ntTimer').value)||180;
     const auctionAtRaw=document.getElementById('ntAuctionAt').value;
     const auctionAt = auctionAtRaw ? new Date(auctionAtRaw).getTime() : null;
     const rules=(document.getElementById('ntRules').value||'').trim();
@@ -1216,7 +1216,7 @@ function renderTimerRing(){
   if (!auctionCache || !auctionCache.timerEndsAt || !auctionCache.running){
     return `<div class="timer-ring-wrap"><div class="timer-ring"><svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"></circle></svg><div class="timer-num">--</div></div></div>`;
   }
-  const total=(tCache.bidTimerSeconds||15)*1000;
+  const total=(tCache.bidTimerSeconds||180)*1000;
   const remainMs=Math.max(0, auctionCache.timerEndsAt-Date.now());
   const remainSec=Math.ceil(remainMs/1000);
   const pct=Math.max(0,Math.min(1,remainMs/total));
@@ -1362,7 +1362,7 @@ function attachTournamentHandlers(){
     const patch = {
       totalBudget: Number(document.getElementById('rtBudget').value)||0,
       maxPlayersPerTeam: Number(document.getElementById('rtMax').value)||7,
-      bidTimerSeconds: Number(document.getElementById('rtTimer').value)||15,
+      bidTimerSeconds: Number(document.getElementById('rtTimer').value)||180,
       basePriceDefault: Number(document.getElementById('rtBase').value)||0,
       minBidIncrement: Number(document.getElementById('rtIncrement').value)||10000,
       auctionAt: auctionAtRaw ? new Date(auctionAtRaw).getTime() : null,
