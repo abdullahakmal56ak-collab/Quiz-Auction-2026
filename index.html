@@ -391,7 +391,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -653,9 +653,10 @@ async function attachTournamentListeners(tid){
     render();
   }));
   unsubs.push(onSnapshot(doc(db,'tournaments',tid,'state','auction'), snap=>{
-    const prevPrice = auctionCache ? auctionCache.currentBid : null;
+    const prevAuction = auctionCache;
     auctionCache = snap.exists() ? snap.data() : null;
-    if (auctionCache && prevPrice !== null && auctionCache.currentBid !== prevPrice) flashPrice = true;
+    if (auctionCache && prevAuction && auctionCache.currentBid !== prevAuction.currentBid) flashPrice = true;
+    announceAuctionChange(prevAuction, auctionCache);
     render();
   }));
   unsubs.push(onSnapshot(query(collection(db,'tournaments',tid,'history'), orderBy('createdAt','desc')), snap=>{
@@ -674,6 +675,89 @@ async function attachTournamentListeners(tid){
 /* ═══════════════════════════════════════════════════════════════════
    AUCTION LOGIC
    ═══════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   AI AUCTIONEER VOICE (Web Speech API — runs locally on every device,
+   host and captains, no server audio, no API key needed)
+   ═══════════════════════════════════════════════════════════════════ */
+let announcerOn = true;      // per-device toggle, defaults on
+let announcerVoice = null;
+let announcerHypeWords = ['🔥 Hurry up!', 'Going once, going twice!', 'Big money on the table!', 'Who\\'s next to jump in?', 'This one\\'s heating up!'];
+
+function pickAnnouncerVoice(){
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length===0) return null;
+  // Prefer an English voice with an energetic/male-announcer feel if available; fall back to default.
+  return voices.find(v=>/en-IN|en-GB|en-US/.test(v.lang) && /Male|David|Daniel|Ravi/i.test(v.name))
+      || voices.find(v=>/en/i.test(v.lang))
+      || voices[0];
+}
+if ('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged = ()=>{ announcerVoice = pickAnnouncerVoice(); };
+  announcerVoice = pickAnnouncerVoice();
+}
+
+function speak(text){
+  if (!announcerOn || !('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel(); // don't stack overlapping announcements
+    const u = new SpeechSynthesisUtterance(text);
+    if (announcerVoice) u.voice = announcerVoice;
+    u.rate = 1.12;   // energetic, slightly fast auctioneer pace
+    u.pitch = 1.15;  // brighter, hyped tone
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+  }catch(e){ /* speech synthesis not available — fail silently */ }
+}
+
+function moneyToSpeech(n){
+  // "1000000" -> "10 lakh", "10000000" -> "1 Crore" — spoken the way a
+  // South Asian auctioneer would actually say it, not raw digits.
+  if (!n) return '0';
+  if (n >= 1e7){
+    const cr = n / 1e7;
+    return (Number.isInteger(cr) ? cr : cr.toFixed(2)) + ' Crore';
+  }
+  if (n >= 1e5){
+    const lakh = n / 1e5;
+    return (Number.isInteger(lakh) ? lakh : lakh.toFixed(2)) + ' Lakh';
+  }
+  return String(n);
+}
+
+function announceNewPlayer(player){
+  if (!player) return;
+  const cat = player.category ? `${player.category} category! ` : '';
+  const base = moneyToSpeech(player.basePrice);
+  const hype = announcerHypeWords[Math.floor(Math.random()*announcerHypeWords.length)].replace(/[🔥]/g,'');
+  speak(`${player.name}! ${cat}Bidding is now live! Base price ${base}! ${hype}`);
+}
+
+function announceBid(teamName, amount, playerName){
+  const hype = Math.random() < 0.5 ? " Hurry up!" : " Any higher?";
+  speak(`${teamName} bids ${moneyToSpeech(amount)} for ${playerName}!${hype}`);
+}
+
+function announceSold(player, teamName, price){
+  speak(`SOLD! ${player.name} goes to ${teamName} for ${moneyToSpeech(price)}!`);
+}
+
+function announceAuctionChange(prev, next){
+  if (!next) return;
+  // New player just went on the block (id changed from something/null to a new one).
+  if (next.currentPlayerId && next.currentPlayerId !== (prev && prev.currentPlayerId)){
+    const p = playersCache[next.currentPlayerId];
+    announceNewPlayer(p);
+    return;
+  }
+  // A new bid came in on the same player.
+  if (prev && next.currentBidTeamId && next.currentBid !== prev.currentBid && next.currentPlayerId === prev.currentPlayerId){
+    const team = teamsCache[next.currentBidTeamId];
+    const p = playersCache[next.currentPlayerId];
+    if (team && p) announceBid(team.name, next.currentBid, p.name);
+  }
+}
+
 function currentPlayer(){
   if (!auctionCache || !auctionCache.currentPlayerId) return null;
   return playersCache[auctionCache.currentPlayerId] || null;
@@ -724,6 +808,7 @@ async function markSold(){
   await updateTeam(tCache.id, auctionCache.currentBidTeamId, { budgetSpent: (team.budgetSpent||0) + price });
   await addHistory(tCache.id, { playerId:p.id, playerName:p.name, teamId:auctionCache.currentBidTeamId, teamName:team.name, price, result:'sold' });
   await setAuctionState(tCache.id, { currentPlayerId:null, currentBid:0, currentBidTeamId:null, timerEndsAt:null, running:false });
+  announceSold(p, team.name, price);
   showToast('🔨 SOLD — ' + p.name + ' to ' + team.name + ' for ' + fmtMoney(price));
 }
 async function markUnsold(){
@@ -767,13 +852,23 @@ function render(){
     }
   }
 
+  const announcerToggle = document.getElementById('announcerToggle');
+  if (announcerToggle) announcerToggle.onclick = ()=>{
+    announcerOn = !announcerOn;
+    if (!announcerOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    render();
+  };
+
   if (flashPrice) setTimeout(()=>{ flashPrice=false; }, 500);
 }
 
 function topbar(rightHtml){
   return `<div class="topbar">
     <div class="brand"><div class="brand-mark">Q</div><div class="brand-name">Quiz <b>Auction</b></div></div>
-    <div class="topbar-right">${rightHtml}</div>
+    <div class="topbar-right">
+      <button class="icon-btn" id="announcerToggle" title="${announcerOn?'Mute announcer':'Unmute announcer'}">${announcerOn?'🔊':'🔇'}</button>
+      ${rightHtml}
+    </div>
   </div>`;
 }
 
