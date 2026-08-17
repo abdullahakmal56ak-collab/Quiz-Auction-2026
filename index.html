@@ -382,7 +382,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "1.5.1";
+const APP_VERSION = "1.6.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -724,8 +724,28 @@ function render(){
   if (!authReady){ root.innerHTML = `<div class="loading-screen"><div class="spinner"></div>Loading…</div>`; return; }
   if (!currentUser){ root.innerHTML = renderLanding(); attachLandingHandlers(); return; }
 
+  // Preserve focus + cursor position + typed value across re-renders — a
+  // live Firestore listener can fire (and force a full re-render) at any
+  // moment, including mid-keystroke inside a modal's <input>. Without this,
+  // that re-render replaces the DOM node and the keyboard/focus disappears.
+  const active = document.activeElement;
+  const focusInfo = (active && active.id && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.tagName==='SELECT'))
+    ? { id: active.id, selStart: active.selectionStart, selEnd: active.selectionEnd, value: active.value }
+    : null;
+
   if (!route.tournamentId){ root.innerHTML = renderDashboard(); attachDashboardHandlers(); }
   else { root.innerHTML = renderTournament(); attachTournamentHandlers(); }
+
+  if (focusInfo){
+    const el = document.getElementById(focusInfo.id);
+    if (el){
+      if (el.value !== focusInfo.value) el.value = focusInfo.value;
+      el.focus();
+      if (typeof focusInfo.selStart === 'number' && el.setSelectionRange){
+        try{ el.setSelectionRange(focusInfo.selStart, focusInfo.selEnd); }catch(e){}
+      }
+    }
+  }
 
   if (flashPrice) setTimeout(()=>{ flashPrice=false; }, 500);
 }
@@ -873,7 +893,7 @@ function renderNewTournamentModal(){
         <div class="field"><label>Max players / team</label><input id="ntMaxPlayers" type="number" placeholder="7" /></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Default base price</label><input id="ntBasePrice" type="number" placeholder="200000" /></div>
+        <div class="field"><label>Default base price (in Cr)</label><input id="ntBasePrice" type="number" step="0.01" placeholder="e.g. 1" /></div>
         <div class="field"><label>Min bid increment</label><input id="ntIncrement" type="number" placeholder="50000" /></div>
       </div>
       <div class="field-row">
@@ -914,7 +934,7 @@ function attachDashboardHandlers(){
     const name=(document.getElementById('ntName').value||'').trim();
     const totalBudget=Number(document.getElementById('ntBudget').value)||0;
     const maxPlayersPerTeam=Number(document.getElementById('ntMaxPlayers').value)||7;
-    const basePriceDefault=Number(document.getElementById('ntBasePrice').value)||0;
+    const basePriceDefault=Math.round((Number(document.getElementById('ntBasePrice').value)||0) * 1e7);
     const minBidIncrement=Number(document.getElementById('ntIncrement').value)||10000;
     const bidTimerSeconds=Number(document.getElementById('ntTimer').value)||180;
     const auctionAtRaw=document.getElementById('ntAuctionAt').value;
@@ -1132,7 +1152,7 @@ function renderOwnerRulesTab(){
       <div class="field"><label>Bid timer (seconds)</label><input id="rtTimer" type="number" value="${t.bidTimerSeconds}" /></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Default base price</label><input id="rtBase" type="number" value="${t.basePriceDefault}" /></div>
+      <div class="field"><label>Default base price (in Cr)</label><input id="rtBase" type="number" step="0.01" value="${t.basePriceDefault ? (t.basePriceDefault/1e7) : ''}" /></div>
       <div class="field"><label>Min bid increment</label><input id="rtIncrement" type="number" value="${t.minBidIncrement}" /></div>
     </div>
     <div class="field"><label>Auction date &amp; time</label><input id="rtAuctionAt" type="datetime-local" value="${auctionAtLocal}" /></div>
@@ -1246,7 +1266,7 @@ function renderAddPlayerModal(){
           <option value="Silver">Silver</option>
         </select>
       </div>
-      <div class="field"><label>Base price</label><input id="apBase" type="number" value="${tCache?.basePriceDefault||0}" /></div>
+      <div class="field"><label>Base price (in Cr)</label><input id="apBase" type="number" step="0.01" placeholder="e.g. 1" value="${tCache?.basePriceDefault ? (tCache.basePriceDefault/1e7) : ''}" /></div>
       <div class="modal-close-row">
         <button class="btn btn-ghost btn-sm" id="apCancel">Cancel</button>
         <button class="btn btn-gold btn-sm" id="apCreate" ${busy?'disabled':''}>${busy?'Adding…':'Add Player'}</button>
@@ -1269,7 +1289,7 @@ function renderAssignTeamModal(){
       <h3>Assign Captain</h3>
       <div class="field"><label>Approved participant</label>
         <select id="atParticipant">
-          ${approvedNotAssigned.map(r=>`<option value="${r.uid}" data-name="${esc(r.name)}">${esc(r.name)}</option>`).join('')}
+          ${approvedNotAssigned.map(r=>`<option value="${r.uid}" data-name="${esc(r.name||r.uid)}">${esc(r.name && r.name!=='Unknown' ? r.name : 'Unnamed participant ('+r.uid.slice(0,6)+')')}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>Team name</label><input id="atTeamName" placeholder="e.g. Karachi Kings" /></div>
@@ -1306,7 +1326,7 @@ function attachTournamentHandlers(){
   const apCreate = document.getElementById('apCreate');
   if (apCreate) apCreate.onclick = async ()=>{
     const name=(document.getElementById('apName').value||'').trim();
-    const base=Number(document.getElementById('apBase').value)||0;
+    const base=Math.round((Number(document.getElementById('apBase').value)||0) * 1e7);
     const category=document.getElementById('apCategory').value||'';
     if (!name){ showToast('Enter a player name', 'error'); return; }
     busy=true; render();
@@ -1370,7 +1390,7 @@ function attachTournamentHandlers(){
       totalBudget: Number(document.getElementById('rtBudget').value)||0,
       maxPlayersPerTeam: Number(document.getElementById('rtMax').value)||7,
       bidTimerSeconds: Number(document.getElementById('rtTimer').value)||180,
-      basePriceDefault: Number(document.getElementById('rtBase').value)||0,
+      basePriceDefault: Math.round((Number(document.getElementById('rtBase').value)||0) * 1e7),
       minBidIncrement: Number(document.getElementById('rtIncrement').value)||10000,
       auctionAt: auctionAtRaw ? new Date(auctionAtRaw).getTime() : null,
       rules: (document.getElementById('rtRules').value||'').trim()
