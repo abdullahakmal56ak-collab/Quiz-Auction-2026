@@ -101,6 +101,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 .btn-gold:hover{box-shadow:0 8px 22px -6px rgba(212,169,79,0.7);}
 .btn-teal{background:linear-gradient(155deg,#4ee9d4,var(--teal));color:#04211d;box-shadow:0 6px 18px -6px rgba(45,212,191,0.5);}
 .btn-crimson{background:linear-gradient(155deg,#f16468,var(--crimson));color:#2a0708;box-shadow:0 6px 18px -6px rgba(229,72,77,0.5);}
+.btn-crimson-outline{background:rgba(229,72,77,0.08);border:1.5px solid rgba(229,72,77,0.4);color:#f2989c;}
+.btn-crimson-outline:hover{background:rgba(229,72,77,0.14);border-color:var(--crimson);}
 .btn-block{width:100%;}
 .btn-lg{padding:15px 20px;font-size:15px;border-radius:12px;}
 .btn-sm{padding:6px 11px;font-size:12px;border-radius:7px;}
@@ -110,6 +112,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
   background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);
   padding:20px;
 }
+.danger-zone{border-color:rgba(229,72,77,0.28);background:linear-gradient(180deg, rgba(229,72,77,0.05), var(--bg-card));margin-top:16px;}
 .card-soft{background:var(--bg-raised);border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px;}
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;}
@@ -161,7 +164,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 }
 
 /* ── Dashboard / tournament list ─────────────────────────────────── */
-.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 12px;}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px;gap:10px;flex-wrap:wrap;}
 .section-title h2{font-family:'Oswald';font-weight:600;font-size:18px;letter-spacing:0.01em;}
 .t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
 .t-card{
@@ -189,27 +192,32 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 
 /* ── Tournament setup (host) ─────────────────────────────────────── */
 .tabs{display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:18px;overflow-x:auto;}
-.tab-btn{padding:9px 15px;border-radius:8px;font-size:13px;font-weight:600;background:transparent;color:var(--text-dim);white-space:nowrap;}
-.tab-btn.active{background:var(--bg-card-2);color:var(--gold-bright);}
+.tab-btn{padding:10px 15px;border-radius:8px;font-size:13px;font-weight:600;background:transparent;color:var(--text-dim);white-space:nowrap;transition:all .15s;}
+.tab-btn.active{background:var(--bg-card-2);color:var(--gold-bright);box-shadow:inset 0 0 0 1px var(--line);}
 .list-row{
-  display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-raised);
-  border:1px solid var(--line-soft);border-radius:9px;margin-bottom:8px;
+  display:flex;align-items:center;gap:13px;padding:14px 15px;background:var(--bg-raised);
+  border:1px solid var(--line-soft);border-radius:11px;margin-bottom:9px;
+  transition:border-color .15s;
 }
+.list-row:hover{border-color:var(--line);}
 .avatar{
-  width:36px;height:36px;border-radius:8px;flex-shrink:0;
-  background:var(--bg-card-2);display:flex;align-items:center;justify-content:center;
-  font-family:'Oswald';font-weight:600;font-size:14px;color:var(--text-dim);
+  width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(150deg,var(--bg-card-2),var(--bg-raised));
+  border:1px solid var(--line-soft);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald';font-weight:600;font-size:14.5px;color:var(--text-dim);
 }
 .list-row .info{flex:1;min-width:0;}
-.list-row .info .name{font-weight:600;font-size:14px;}
-.list-row .info .sub{font-size:11.5px;color:var(--text-faint);margin-top:1px;}
+.list-row .info .name{font-weight:600;font-size:14.5px;line-height:1.3;}
+.list-row .info .sub{font-size:12px;color:var(--text-faint);margin-top:2px;line-height:1.4;}
 .icon-btn{
-  width:30px;height:30px;border-radius:7px;background:var(--bg-card-2);
+  width:32px;height:32px;border-radius:8px;background:var(--bg-card-2);
+  border:1px solid transparent;
   display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-dim);
-  flex-shrink:0;
+  flex-shrink:0;transition:all .15s;
 }
-.icon-btn:hover{color:var(--text);}
-.icon-btn.danger:hover{color:var(--crimson);background:var(--crimson-dim);}
+.icon-btn:hover{color:var(--text);border-color:var(--line);}
+.icon-btn.danger:hover{color:var(--crimson);background:var(--crimson-dim);border-color:rgba(229,72,77,0.3);}
 
 /* ── Auction room ────────────────────────────────────────────────── */
 .arena{
@@ -253,15 +261,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 .board{margin-top:18px;}
 .board-title{font-family:'Oswald';font-size:13px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
 .team-strip{
-  display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg-raised);
-  border:1px solid var(--line-soft);border-radius:9px;margin-bottom:8px;position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-raised);
+  border:1px solid var(--line-soft);border-radius:10px;margin-bottom:8px;position:relative;overflow:hidden;
+  flex-wrap:wrap;
 }
-.team-strip.leading{border-color:var(--teal);}
-.team-strip .tname{font-weight:700;font-size:13.5px;min-width:110px;}
-.budget-bar{flex:1;height:7px;background:var(--bg-card-2);border-radius:100px;overflow:hidden;}
+.team-strip.leading{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset;}
+.team-strip .tname{font-weight:700;font-size:13.5px;min-width:88px;flex-shrink:0;}
+.budget-bar{flex:1;min-width:60px;height:7px;background:var(--bg-card-2);border-radius:100px;overflow:hidden;}
 .budget-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:100px;transition:width .4s ease;}
-.team-strip .amt{font-family:'JetBrains Mono';font-size:12.5px;color:var(--text-dim);min-width:96px;text-align:right;}
-.team-strip .cnt{font-size:10.5px;color:var(--text-faint);min-width:38px;text-align:right;}
+.team-strip .amt{font-family:'JetBrains Mono';font-size:12px;color:var(--text-dim);min-width:80px;text-align:right;flex-shrink:0;}
+.team-strip .cnt{font-size:10.5px;color:var(--text-faint);min-width:32px;text-align:right;flex-shrink:0;}
 
 /* squad list (captain view) */
 .squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px;}
@@ -382,7 +391,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -489,6 +498,17 @@ async function createTournament(payload){
 async function updateTournament(tid, patch){
   const { db, doc, updateDoc } = fb();
   await updateDoc(doc(db, 'tournaments', tid), patch);
+}
+async function deleteTournament(tid){
+  const { db, doc, deleteDoc, collection, getDocs } = fb();
+  // Firestore doesn't cascade-delete subcollections — clear them first so
+  // no orphaned teams/players/requests/history/state docs are left behind.
+  const subcols = ['teams','players','requests','history','state'];
+  for (const sub of subcols){
+    const snap = await getDocs(collection(db, 'tournaments', tid, sub));
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+  }
+  await deleteDoc(doc(db, 'tournaments', tid));
 }
 
 /* ── Join requests ───────────────────────────────────────────────── */
@@ -1159,6 +1179,12 @@ function renderOwnerRulesTab(){
     <div class="field"><label>Rules</label><input id="rtRules" value="${esc(t.rules||'')}" placeholder="e.g. Max 4 overseas players" /></div>
     <button class="btn btn-gold btn-block" id="saveRulesBtn" ${busy?'disabled':''}>${busy?'Saving…':'Save Changes'}</button>
     <div class="hint" style="margin-top:14px">Changing budget/timer only affects new bids going forward — it won't rewrite already-sold players.</div>
+  </div>
+
+  <div class="card danger-zone">
+    <div class="board-title" style="color:var(--crimson)">Danger Zone</div>
+    <div class="hint" style="margin-bottom:14px">Permanently deletes this tournament and everything in it — players, teams, requests, and history. This cannot be undone.</div>
+    <button class="btn btn-crimson-outline btn-block" id="deleteTournamentBtn">🗑 Delete Tournament</button>
   </div>`;
 }
 
@@ -1398,6 +1424,19 @@ function attachTournamentHandlers(){
     busy=true; render();
     try{ await updateTournament(tCache.id, patch); showToast('Saved'); }
     catch(e){ showToast('Could not save', 'error'); }
+    busy=false; render();
+  };
+  const deleteTournamentBtn = document.getElementById('deleteTournamentBtn');
+  if (deleteTournamentBtn) deleteTournamentBtn.onclick = async ()=>{
+    if (!confirm(`Delete "${tCache.name}" permanently? This removes all players, teams, requests, and history. This cannot be undone.`)) return;
+    busy=true; render();
+    try{
+      await deleteTournament(tCache.id);
+      showToast('Tournament deleted');
+      detachTournamentListeners();
+      route={page:'dashboard'};
+    }
+    catch(e){ console.error(e); showToast('Could not delete tournament', 'error'); }
     busy=false; render();
   };
 
