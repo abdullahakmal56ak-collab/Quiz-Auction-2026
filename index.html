@@ -210,11 +210,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 }
 .icon-btn:hover{color:var(--text);}
 .icon-btn.danger:hover{color:var(--crimson);background:var(--crimson-dim);}
-.role-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.03em;}
-.role-BAT{background:#1e3a5f;color:#7ec4fa;}
-.role-BOWL{background:#3a1e1e;color:#fa9c7e;}
-.role-AR{background:#2e3a1e;color:#c3e57e;}
-.role-WK{background:#3a2e1e;color:#e5c37e;}
 
 /* ── Auction room ────────────────────────────────────────────────── */
 .arena{
@@ -380,6 +375,10 @@ let listUnsubs = [];         // active onSnapshot unsubscribers for the dashboar
 
 let flashPrice = false;
 
+// Bump this on every meaningful change so it's easy to confirm which build
+// is actually live on GitHub Pages (shown in the footer on every screen).
+const APP_VERSION = "1.2.0";
+
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
   n = Number(n)||0;
@@ -521,11 +520,11 @@ async function deleteTeamDoc(tid, teamId){
 }
 
 /* ── Players ─────────────────────────────────────────────────────── */
-async function addPlayer(tid, name, role, basePrice){
+async function addPlayer(tid, name, basePrice){
   const { db, doc, setDoc } = fb();
   const pid = uid();
   await setDoc(doc(db, 'tournaments', tid, 'players', pid), {
-    name, role, basePrice, status:'available', soldTo:null, soldPrice:null, createdAt: Date.now()
+    name, basePrice, status:'available', soldTo:null, soldPrice:null, createdAt: Date.now()
   });
   return pid;
 }
@@ -830,7 +829,7 @@ function renderDashboard(){
         </div>
       `}
     `}
-    <div class="footer-note">Quiz Auction</div>
+    <div class="footer-note">Quiz Auction · v${APP_VERSION}</div>
   </div>
   ${renderNewTournamentModal()}
   `;
@@ -1027,7 +1026,7 @@ function renderOwnerTournament(){
     ${hostTab==='rules' ? renderOwnerRulesTab() : ''}
     ${hostTab==='auction' ? renderOwnerAuctionTab() : ''}
 
-    <div class="footer-note">Tournament ID: ${t.id}</div>
+    <div class="footer-note">Tournament ID: ${t.id} · v${APP_VERSION}</div>
   </div>
   ${renderAddPlayerModal()}
   ${renderAssignTeamModal()}
@@ -1049,7 +1048,7 @@ function renderOwnerPlayersTab(){
       <div class="list-row">
         <div class="avatar">${esc((p.name||'?').charAt(0).toUpperCase())}</div>
         <div class="info">
-          <div class="name">${esc(p.name)} <span class="role-tag role-${esc(p.role)}">${esc(p.role)}</span></div>
+          <div class="name">${esc(p.name)}</div>
           <div class="sub">Base ${fmtMoney(p.basePrice)} ${p.status==='sold' ? `· Sold to ${esc(teamsCache[p.soldTo]?.name||'—')} for ${fmtMoney(p.soldPrice)}` : p.status==='unsold' ? '· Unsold' : p.status==='current' ? '· On the block now' : ''}</div>
         </div>
         ${p.status==='available' ? `<button class="icon-btn danger" data-del-player="${p.id}" title="Remove">✕</button>` : ''}
@@ -1158,7 +1157,7 @@ function renderOwnerAuctionTab(){
     <div class="arena">
       <div class="arena-tag">On the Block</div>
       <div class="player-name">${esc(cp.name)}</div>
-      <div class="player-role-row"><span class="role-tag role-${esc(cp.role)}">${esc(cp.role)}</span><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
+      <div class="player-role-row"><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
       <div class="price-block">
         <div class="price-label">Current Bid</div>
         <div class="price-value mono ${flashPrice?'flash':''}">${fmtMoney(auctionCache.currentBid)}</div>
@@ -1232,15 +1231,7 @@ function renderAddPlayerModal(){
     <div class="modal">
       <h3>Add Player</h3>
       <div class="field"><label>Player name</label><input id="apName" placeholder="e.g. Babar Azam" /></div>
-      <div class="field-row">
-        <div class="field"><label>Role</label>
-          <select id="apRole">
-            <option value="BAT">Batsman</option><option value="BOWL">Bowler</option>
-            <option value="AR">All-Rounder</option><option value="WK">Wicketkeeper</option>
-          </select>
-        </div>
-        <div class="field"><label>Base price</label><input id="apBase" type="number" value="${tCache?.basePriceDefault||0}" /></div>
-      </div>
+      <div class="field"><label>Base price</label><input id="apBase" type="number" value="${tCache?.basePriceDefault||0}" /></div>
       <div class="modal-close-row">
         <button class="btn btn-ghost btn-sm" id="apCancel">Cancel</button>
         <button class="btn btn-gold btn-sm" id="apCreate" ${busy?'disabled':''}>${busy?'Adding…':'Add Player'}</button>
@@ -1300,11 +1291,10 @@ function attachTournamentHandlers(){
   const apCreate = document.getElementById('apCreate');
   if (apCreate) apCreate.onclick = async ()=>{
     const name=(document.getElementById('apName').value||'').trim();
-    const role=document.getElementById('apRole').value;
     const base=Number(document.getElementById('apBase').value)||0;
     if (!name){ showToast('Enter a player name', 'error'); return; }
     busy=true; render();
-    try{ await addPlayer(tCache.id, name, role, base); showAddPlayerModal=false; }
+    try{ await addPlayer(tCache.id, name, base); showAddPlayerModal=false; }
     catch(e){ console.error(e); showToast('Could not add player', 'error'); }
     busy=false; render();
   };
@@ -1408,7 +1398,7 @@ function renderCaptainView(team){
     <div class="arena">
       <div class="arena-tag">On the Block</div>
       <div class="player-name">${esc(cp.name)}</div>
-      <div class="player-role-row"><span class="role-tag role-${esc(cp.role)}">${esc(cp.role)}</span><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
+      <div class="player-role-row"><span style="color:var(--text-faint);font-size:12.5px">Base ${fmtMoney(cp.basePrice)}</span></div>
       <div class="price-block">
         <div class="price-label">Current Bid</div>
         <div class="price-value mono ${flashPrice?'flash':''}">${fmtMoney(auctionCache.currentBid)}</div>
@@ -1470,7 +1460,7 @@ function renderCaptainView(team){
       }).join('')}
     </div>
 
-    <div class="footer-note">Quiz Auction — good luck!</div>
+    <div class="footer-note">Quiz Auction · v${APP_VERSION} — good luck!</div>
   </div>`;
 }
 
@@ -1505,6 +1495,7 @@ async function boot(){
   const { auth, onAuthStateChanged } = fa();
   onAuthStateChanged(auth, async (user)=>{
     authReady = true;
+    busy = false; // whatever triggered this (login, register, or a stale session restoring) has now resolved — never leave the button stuck on "Please wait…"
     if (user){
       const profile = await getUserProfile(user.uid);
       currentUser = { uid: user.uid, email: user.email, name: profile.name || user.displayName || user.email };
@@ -1524,6 +1515,55 @@ async function boot(){
 
 document.addEventListener('DOMContentLoaded', boot);
 if (document.readyState !== 'loading') boot();
+
+/* ═══════════════════════════════════════════════════════════════════
+   UPDATE CHECKER — polls the deployed index.html on GitHub Pages and
+   compares its APP_VERSION string to the one already running in this
+   tab. If they differ, a real newer build has been pushed, so show a
+   small persistent banner offering a reload — no action needed on push,
+   this runs automatically for anyone who already has the app open.
+   ═══════════════════════════════════════════════════════════════════ */
+let _updateAvailable = false;
+let _updateChecking = false;
+
+async function checkForUpdate(){
+  if (_updateChecking || _updateAvailable) return; // already found one — no need to keep checking
+  _updateChecking = true;
+  try{
+    // Cache-bust so we always get the real latest file, not a stale CDN/
+    // browser-cached copy of index.html.
+    const res = await fetch(location.pathname + '?_v=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const html = await res.text();
+    const match = html.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+    if (match && match[1] && match[1] !== APP_VERSION){
+      _updateAvailable = true;
+      renderUpdateBanner();
+    }
+  }catch(e){
+    // Network hiccup or offline — just try again on the next interval.
+  }finally{
+    _updateChecking = false;
+  }
+}
+
+function renderUpdateBanner(){
+  if (document.getElementById('updateBanner')) return; // already showing
+  const el = document.createElement('div');
+  el.id = 'updateBanner';
+  el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:300;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,#f0c674,#d4a94f);color:#1a1204;font-weight:600;font-size:13px;box-shadow:0 -8px 24px -8px rgba(0,0,0,0.4)';
+  el.innerHTML = `<span>🔄 A new version is available</span><button id="updateReloadBtn" style="background:#1a1204;color:#f0c674;border:none;padding:7px 14px;border-radius:7px;font-weight:700;font-size:12.5px;cursor:pointer">Reload Now</button>`;
+  document.body.appendChild(el);
+  document.getElementById('updateReloadBtn').onclick = ()=> location.reload();
+}
+
+// Check shortly after load (in case a push landed while the tab was
+// closed), then every 2 minutes for as long as the tab stays open — and
+// immediately whenever the tab regains focus, since that's the moment a
+// user is most likely to actually notice/act on the banner.
+setTimeout(checkForUpdate, 8000);
+setInterval(checkForUpdate, 120000);
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) checkForUpdate(); });
 
 })();
 </script>
