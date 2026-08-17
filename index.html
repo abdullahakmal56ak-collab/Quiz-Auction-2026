@@ -681,7 +681,7 @@ async function attachTournamentListeners(tid){
    ═══════════════════════════════════════════════════════════════════ */
 let announcerOn = true;      // per-device toggle, defaults on
 let announcerVoice = null;
-let announcerHypeWords = ['🔥 Hurry up!', 'Going once, going twice!', 'Big money on the table!', 'Who\\'s next to jump in?', 'This one\\'s heating up!'];
+let announcerHypeWords = ['🔥 Hurry up!', 'Going once, going twice!', 'Big money on the table!', "Who's next to jump in?", "This one's heating up!"];
 
 function pickAnnouncerVoice(){
   if (!('speechSynthesis' in window)) return null;
