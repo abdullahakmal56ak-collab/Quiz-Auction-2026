@@ -35,6 +35,28 @@
   --radius:        14px;
   --radius-sm:     9px;
 }
+html[data-theme="light"]{
+  --bg:            #f4f2ec;
+  --bg-raised:     #ffffff;
+  --bg-card:       #ffffff;
+  --bg-card-2:     #f7f5ef;
+  --line:          #e0dccf;
+  --line-soft:     #ebe7db;
+  --text:          #201d17;
+  --text-dim:      #6b6558;
+  --text-faint:    #9b9788;
+  --gold:          #b8863b;
+  --gold-bright:   #96691f;
+  --teal:          #0f9c8c;
+  --teal-dim:      #d3f2ed;
+  --crimson:       #d3383d;
+  --crimson-dim:   #fbe2e2;
+  --green:         #1f9d63;
+  --shadow-lg:     0 24px 60px -20px rgba(30,25,15,0.15);
+}
+html[data-theme="light"] .price-value{ text-shadow:none; }
+html[data-theme="light"] .arena{ box-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 20px 40px -28px rgba(30,25,15,0.2); }
+html[data-theme="light"] .card{ box-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 24px -20px rgba(30,25,15,0.15); }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -47,6 +69,13 @@ body{
   font-family:'Inter',system-ui,sans-serif;
   min-height:100vh;
   -webkit-font-smoothing:antialiased;
+  transition:background-color .2s, color .2s;
+}
+html[data-theme="light"] body{
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(184,134,59,0.08), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 100%, rgba(15,156,140,0.05), transparent),
+    var(--bg);
 }
 .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
 .display{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.02em;}
@@ -305,6 +334,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
 .budget-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:100px;transition:width .4s ease;box-shadow:0 0 8px rgba(45,212,191,0.4);}
 .team-strip .amt{font-family:'JetBrains Mono';font-size:12.5px;font-weight:600;color:var(--text-dim);min-width:80px;text-align:right;flex-shrink:0;}
 .team-strip .cnt{font-size:10.5px;color:var(--text-faint);min-width:32px;text-align:right;flex-shrink:0;}
+.team-strip.clickable{cursor:pointer;}
+.expand-chevron{font-size:18px;color:var(--text-faint);transition:transform .2s;margin-left:2px;}
+.expand-chevron.open{transform:rotate(90deg);color:var(--gold-bright);}
+.team-expand{
+  background:var(--bg-raised);border:1px solid var(--line-soft);border-top:none;
+  border-radius:0 0 11px 11px;padding:14px 15px 16px;margin:-9px 0 9px;
+}
+.team-expand-meta{font-size:12px;color:var(--text-dim);}
 
 /* squad list (captain view) */
 .squad-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
@@ -440,7 +477,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.3.0";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -736,6 +773,10 @@ async function attachTournamentListeners(tid){
    host and captains, no server audio, no API key needed)
    ═══════════════════════════════════════════════════════════════════ */
 let announcerOn = true;      // per-device toggle, defaults on
+let currentTheme = (function(){
+  try{ return localStorage.getItem('qa_theme') || 'dark'; }catch(e){ return 'dark'; }
+})();
+document.documentElement.setAttribute('data-theme', currentTheme);
 let announcerVoice = null;
 let announcerHypeWords = ['🔥 Hurry up!', 'Going once, going twice!', 'Big money on the table!', "Who's next to jump in?", "This one's heating up!"];
 
@@ -908,6 +949,13 @@ function render(){
     }
   }
 
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) themeToggle.onclick = ()=>{
+    currentTheme = currentTheme==='light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    try{ localStorage.setItem('qa_theme', currentTheme); }catch(e){}
+    render();
+  };
   const announcerToggle = document.getElementById('announcerToggle');
   if (announcerToggle) announcerToggle.onclick = ()=>{
     announcerOn = !announcerOn;
@@ -922,6 +970,7 @@ function topbar(rightHtml){
   return `<div class="topbar">
     <div class="brand"><div class="brand-mark">Q</div><div class="brand-name">Quiz <b>Auction</b></div></div>
     <div class="topbar-right">
+      <button class="icon-btn" id="themeToggle" title="${currentTheme==='light'?'Switch to dark mode':'Switch to light mode'}">${currentTheme==='light'?'🌙':'☀️'}</button>
       <button class="icon-btn" id="announcerToggle" title="${announcerOn?'Mute announcer':'Unmute announcer'}">${announcerOn?'🔊':'🔇'}</button>
       ${rightHtml}
     </div>
@@ -1474,6 +1523,7 @@ function renderAddPlayerModal(){
 
 let showAssignTeamModal = false;
 let showEditTeamModal = null; // holds teamId or null
+let expandedTeamId = null; // captain view: which team's squad is expanded
 function renderAssignTeamModal(){
   if (!showAssignTeamModal) return '';
   const teams = Object.values(teamsCache);
@@ -1751,16 +1801,34 @@ function renderCaptainView(team){
       ${Object.values(teamsCache).sort((a,b)=>((b.budgetTotal-b.budgetSpent)-(a.budgetTotal-a.budgetSpent))).map(tm=>{
         const rem=(tm.budgetTotal||0)-(tm.budgetSpent||0);
         const pct=tm.budgetTotal?Math.max(0,Math.min(100,(rem/tm.budgetTotal)*100)):0;
-        const cnt=Object.values(playersCache).filter(p=>p.soldTo===tm.id).length;
+        const tmPlayers=Object.values(playersCache).filter(p=>p.soldTo===tm.id);
+        const cnt=tmPlayers.length;
         const leading=auctionCache && auctionCache.currentBidTeamId===tm.id;
         const mine = tm.id===team.id;
+        const isOpen = expandedTeamId===tm.id;
         return `
-        <div class="team-strip ${leading?'leading':''} ${mine && !leading?'mine':''}">
+        <div class="team-strip clickable ${leading?'leading':''} ${mine && !leading?'mine':''}" data-expand-team="${tm.id}">
           <div class="tname">${esc(tm.name)}${mine?' (you)':''}</div>
           <div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%"></div></div>
           <div class="amt mono">${fmtMoney(rem)}</div>
           <div class="cnt">${cnt}/${t.maxPlayersPerTeam}</div>
-        </div>`;
+          <div class="expand-chevron ${isOpen?'open':''}">›</div>
+        </div>
+        ${isOpen ? `
+        <div class="team-expand">
+          <div class="team-expand-meta">🧢 ${esc(tm.participantName||'—')} · Total budget ${fmtMoney(tm.budgetTotal)}</div>
+          ${tmPlayers.length===0 ? `<div class="hint" style="margin:8px 0 4px">No players bought yet.</div>` : `
+          <div class="squad-grid" style="margin-top:10px">
+            ${tmPlayers.map(p=>{
+              const catClass = p.category ? `cat-${p.category.toLowerCase()}` : '';
+              return `<div class="squad-slot filled ${catClass}">
+                ${p.category ? `<span class="badge cat-${p.category.toLowerCase()}" style="margin-bottom:5px">${esc(p.category)}</span>` : ''}
+                <div class="pname">${esc(p.name)}</div>
+                <div class="pprice mono">${fmtMoney(p.soldPrice)}</div>
+              </div>`;
+            }).join('')}
+          </div>`}
+        </div>` : ''}`;
       }).join('')}
     </div>
 
@@ -1786,23 +1854,23 @@ function attachCaptainHandlers(team){
       }
     };
   });
+  document.querySelectorAll('[data-expand-team]').forEach(el=>{
+    el.onclick = ()=>{
+      const id = el.dataset.expandTeam;
+      expandedTeamId = (expandedTeamId===id) ? null : id;
+      render();
+    };
+  });
 }
 
 /* ── ticking clock ───────────────────────────────────────────────── */
-let autoResolving = false;
 setInterval(()=>{
   if (auctionCache && auctionCache.running && auctionCache.timerEndsAt){
     if (Date.now() >= auctionCache.timerEndsAt && auctionCache.running){
-      auctionCache = { ...auctionCache, running:false }; // freeze visually right away
-
-      // Only the host's own browser writes the final result to Firebase,
-      // so this doesn't fire once per connected captain.
-      const isHostHere = tCache && currentUser && tCache.ownerUid === currentUser.uid;
-      if (isHostHere && !autoResolving){
-        autoResolving = true;
-        const finish = auctionCache.currentBidTeamId ? markSold : markUnsold;
-        finish().finally(()=>{ autoResolving = false; });
-      }
+      // Timer hits 0 and just freezes here — bidding stops, but the round
+      // stays open until the tournament owner manually taps Mark Sold or
+      // Mark Unsold. No automatic resolution.
+      auctionCache = { ...auctionCache, running:false };
     }
     render();
   }
