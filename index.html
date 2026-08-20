@@ -606,7 +606,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "2.8.0";
+const APP_VERSION = "2.9.1";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -2126,6 +2126,9 @@ function renderCaptainView(team){
     ${topbar(`<span class="pill">${avatarHtml(team.photoUrl, team.name, 'avatar-pill')}<span class="dot"></span>${esc(team.name)}</span><button class="icon-btn" id="myTeamPhotoBtn" title="Change team photo">📷</button><button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>`)}
     <a class="back-link" id="backToDash">← All tournaments</a>
     <div class="section-title" style="margin-top:0"><h2>${esc(t.name)}</h2></div>
+
+    <div class="section-title" style="margin:0 0 10px"><h2 style="font-size:15px">📊 Auction Stats</h2></div>
+    ${renderStatsTab()}
 
     ${arenaHtml}
 
