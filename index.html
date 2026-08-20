@@ -394,6 +394,16 @@ html[data-theme="light"] .player-name{text-shadow:0 1px 0 rgba(255,255,255,0.6);
 .squad-slot .empty-lbl{font-size:11px;color:var(--text-faint);}
 
 /* ── Stats tab ────────────────────────────────────────────────────── */
+.stats-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(155deg,var(--bg-card-2),var(--bg-card));border:1px solid var(--line);
+  border-radius:13px;padding:13px 16px;margin-bottom:14px;font-weight:700;font-size:14px;color:var(--text);
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.stats-toggle-chevron{font-size:18px;color:var(--text-faint);transition:transform .2s;}
+.stats-toggle-chevron.open{transform:rotate(90deg);color:var(--gold-bright);}
+.stats-panel{margin-bottom:16px;animation:statsIn .25s ease;}
+@keyframes statsIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
 .stats-hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
 .stat-hero-card{
   border-radius:16px;padding:18px 16px;position:relative;overflow:hidden;
@@ -606,7 +616,7 @@ let flashPrice = false;
 
 // Bump this on every meaningful change so it's easy to confirm which build
 // is actually live on GitHub Pages (shown in the footer on every screen).
-const APP_VERSION = "2.9.1";
+const APP_VERSION = "2.9.2";
 
 function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmtMoney(n){
@@ -1842,6 +1852,7 @@ function renderAddPlayerModal(){
 let showAssignTeamModal = false;
 let showEditTeamModal = null; // holds teamId or null
 let expandedTeamId = null; // captain view: which team's squad is expanded
+let showStatsPanel = false; // captain view: collapsed by default, expands on tap
 function renderAssignTeamModal(){
   if (!showAssignTeamModal) return '';
   const teams = Object.values(teamsCache);
@@ -2127,8 +2138,11 @@ function renderCaptainView(team){
     <a class="back-link" id="backToDash">← All tournaments</a>
     <div class="section-title" style="margin-top:0"><h2>${esc(t.name)}</h2></div>
 
-    <div class="section-title" style="margin:0 0 10px"><h2 style="font-size:15px">📊 Auction Stats</h2></div>
-    ${renderStatsTab()}
+    <button class="stats-toggle" id="statsToggleBtn">
+      <span>📊 Auction Stats</span>
+      <span class="stats-toggle-chevron ${showStatsPanel?'open':''}">›</span>
+    </button>
+    ${showStatsPanel ? `<div class="stats-panel">${renderStatsTab()}</div>` : ''}
 
     ${arenaHtml}
 
@@ -2214,6 +2228,8 @@ function attachCaptainHandlers(team){
   if (logoutBtn) logoutBtn.onclick = logout;
   const back = document.getElementById('backToDash');
   if (back) back.onclick = ()=>{ history.back(); };
+  const statsToggleBtn = document.getElementById('statsToggleBtn');
+  if (statsToggleBtn) statsToggleBtn.onclick = ()=>{ showStatsPanel = !showStatsPanel; render(); };
   const myTeamPhotoBtn = document.getElementById('myTeamPhotoBtn');
   if (myTeamPhotoBtn) myTeamPhotoBtn.onclick = ()=>{
     const input = document.createElement('input');
